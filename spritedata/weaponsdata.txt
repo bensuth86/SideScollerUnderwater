@@ -1,0 +1,7 @@
+spritecat|width|height
+mine|4|4
+harpoonEast|2|1
+cage_open|4|6
+cage_closed|4|6
+snare_open|3|1
+snare_closed|1|2

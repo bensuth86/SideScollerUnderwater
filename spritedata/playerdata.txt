@@ -1,0 +1,4 @@
+spritecat|width|height
+player|1|2
+player_idle|1|2
+player_swim|1|2

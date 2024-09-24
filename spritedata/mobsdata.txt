@@ -1,0 +1,4 @@
+spritecat|width|height
+dartfish|2|1
+spinefish|2|1
+daddyfish|4|4

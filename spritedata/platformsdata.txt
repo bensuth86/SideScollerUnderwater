@@ -1,0 +1,11 @@
+spritecat|width|height
+roof|1|1
+floor|1|1
+wallLeft|1|1
+wallRight|1|1
+tunnelLeft|1|3
+tunnelRight|1|3
+bottomLeftCorner|1|1
+bottomRightCorner|1|1
+topLeftCorner|1|1
+topRightCorner|1|1

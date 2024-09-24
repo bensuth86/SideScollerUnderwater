@@ -1,0 +1,4 @@
+spritecat|width|height
+bubbles|2|2
+enemyDeath|1|1
+explosion|1|1

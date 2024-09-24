@@ -1,0 +1,6 @@
+spritecat|width|height
+rock|2|2
+horseshoe|4|4
+Statue|2|8
+vegetation|1|1
+monument|8|6
