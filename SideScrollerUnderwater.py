@@ -307,11 +307,11 @@ class Game:
         camera_position = str(self.camera.rect)
         self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT- 15)
 
-        vel = str(self.player.vel)
-        self.draw_text(vel, 22, RED, SCREENWIDTH - 100, 15)
+        pos = str(self.player.pos)
+        self.draw_text(pos, 22, RED, 100, 15)
         # self.draw_text(self.player.direction, 22, RED, SCREENWIDTH - 50, 15)
         velocity = str(self.player.vel)
-        # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
+        self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
         for mob in self.mob_sprites:
             vel = (round(mob.vel[0], 3), round(mob.vel[1], 3))
             speed = mob.vel.length()

@@ -9,7 +9,7 @@ vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
 
 class Static_sprite(pygame.sprite.Sprite):
-    """ Don't have velocity though may be animated"""
+    """Don't have velocity though may be animated"""
     def __init__(self, game, col, row, refkey, image):
 
         pygame.sprite.Sprite.__init__(self)
@@ -82,24 +82,24 @@ class Mobile_sprite(Static_sprite):
 
         def lookupgrid(pos):
             x, y = int(pos[0]), int(pos[1])
+            x = min((self.game.map.width-2*TILESIZE), x)  # limit possible x pos to within map width (2340)
+            y = min((self.game.map.height-2*TILESIZE), y) # 900
             grid_col = (x-TILESIZE)//GRIDWIDTH
             grid_row = (y-TILESIZE)//GRIDHEIGHT
             return self.game.grid_squares[grid_row][grid_col]
 
-        grids = map(lookupgrid, ((self.pos[0], self.pos[1]),
-                                 (self.pos[0] + self.rect.width, self.pos[1]),
-                                 (self.pos[0], self.pos[1] + self.rect.height),
-                                 (self.pos[0] + self.rect.width, self.pos[1] + self.rect.height)))
-        grids = map(lookupgrid, ((self.pos[0], self.pos[1]),
-                                 (self.pos[0] + self.rect.width, self.pos[1]),
-                                 (self.pos[0], self.pos[1] + self.rect.height),
-                                 (self.pos[0] + self.rect.width, self.pos[1] + self.rect.height)))
+        grids = map(lookupgrid, ((self.rect.topleft),
+                                 (self.rect.topright),
+                                 (self.rect.bottomleft),
+                                 (self.rect.bottomright)))
         grids = list(set(grids))  # return grids minus duplicates
 
         return grids
 
     def collide_platforms(self, axis):  # [0, 1] for either [x, y] axis
 
+        self.rect[axis] = self.pos[axis]  # update rect with new position
+        self.current_grids = self.get_grids()  # must be before spritecollide
         totalhits = []  # if colling with sprites in multiple grids when between grid boundaries
         for grid in self.current_grids:
             hits = pygame.sprite.spritecollide(self, grid, False)
@@ -107,13 +107,11 @@ class Mobile_sprite(Static_sprite):
 
         if totalhits:
 
-            if self.vel[axis] != 0:  # if self.rect has velocity
-                # # print(self.current_grids)
-                d = int(self.vel[axis] / fabs(self.vel[axis]))  # direction of travel: left = -1, right = 1, up = -1, down = 1
-                # overlap between self.rect and platform.rect
-                overlap = 0.5*d*(self.rect.size[axis] + totalhits[0].rect.size[axis]) - (totalhits[0].rect.center[axis] - self.rect.center[axis])
-                self.pos[axis] -= overlap  # reset position so no longer colliding
-                self.rect[axis] = self.pos[axis]
+            d = int(self.vel[axis] / fabs(self.vel[axis]))  # direction of travel: left = -1, right = 1, up = -1, down = 1
+            # overlap between self.rect and platform.rect
+            overlap = 0.5*d*(self.rect.size[axis] + totalhits[0].rect.size[axis]) - (totalhits[0].rect.center[axis] - self.rect.center[axis])
+            self.pos[axis] -= overlap  # reset position so no longer colliding
+            self.rect[axis] = self.pos[axis]  # update rect position
 
     def checkMapBoundaries(self):
         """ Check if at map boundaries (collision detection not used for platforms at boundary)"""
@@ -212,13 +210,8 @@ class Player(Mobile_sprite):
         self.vel *= Player.runspeed
         self.pos += self.vel
 
-        # update current grid
-        self.current_grids = self.get_grids()  # must be before collision detection
-
         # Check platform collision
-        self.rect.x = self.pos.x
         self.collide_platforms(0)  # check horizontal collision
-        self.rect.y = self.pos.y
         self.collide_platforms(1)  # check vertical collision
 
         # check sprite collisions
