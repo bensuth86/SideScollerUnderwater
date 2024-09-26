@@ -64,8 +64,6 @@ class Mobile_sprite(Static_sprite):
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
         self.angle = 0  # angle subtended from vector (1, 0) i.e. anticlockwise from the x-axis
-        # self.rect = image.get_rect()
-        # self.rect.center = self.pos
         self.vel = vec(0, 0)  # unit vector to be multiplied by runspeed
 
         self.current_grids = self.get_grids()  # grids for which sprite overlaps
@@ -76,6 +74,17 @@ class Mobile_sprite(Static_sprite):
         # handle animations
         self.timer = 0  # used to trigger next frame for animations (can set to -ve value to delay start of an animation
         self.current_frame_index = 0  # used to check if at end of animation reel i.e. at next game loop animation will start over
+
+    def get_unit_vel(self, directionKeys):
+        """ return unit vector for velocity"""
+        self.vel += directionKeys[0] * vec(1, 0)   # up
+        self.vel += directionKeys[1] * vec(-1, 0)  # down
+        self.vel += directionKeys[2] * vec(0, 1)   # left
+        self.vel += directionKeys[3] * vec(0, -1)  # right
+
+        if self.vel != vec(0, 0):
+            self.vel = self.vel.normalize()  # return unit vector with magnitude == 1 ( vec[1, 1] would have magnitude sqrt(2) without this step)
+            return True
 
     def get_grids(self):
         """ Return grid or multiple grids if between boundaries to check for collisions"""
@@ -88,10 +97,10 @@ class Mobile_sprite(Static_sprite):
             grid_row = (y-TILESIZE)//GRIDHEIGHT
             return self.game.grid_squares[grid_row][grid_col]
 
-        grids = map(lookupgrid, ((self.rect.topleft),
-                                 (self.rect.topright),
-                                 (self.rect.bottomleft),
-                                 (self.rect.bottomright)))
+        grids = map(lookupgrid, (self.rect.topleft,
+                                 self.rect.topright,
+                                 self.rect.bottomleft,
+                                 self.rect.bottomright))
         grids = list(set(grids))  # return grids minus duplicates
 
         return grids
@@ -113,24 +122,20 @@ class Mobile_sprite(Static_sprite):
             self.pos[axis] -= overlap  # reset position so no longer colliding
             self.rect[axis] = self.pos[axis]  # update rect position
 
-    def checkMapBoundaries(self):
+    def atMapBoundaries(self):
         """ Check if at map boundaries (collision detection not used for platforms at boundary)"""
 
-        # if self.pos.x <= TILESIZE or self.pos.x >= self.game.map.width - TILESIZE - self.rect.width - self.vel.x:
-        #     self.pos.x += (self.vel.x * -1)
-        # if self.pos.y <= TILESIZE or self.pos.y >= self.game.map.height - TILESIZE - self.rect.height - self.vel.y:
-        #     self.pos.y += (self.vel.y * -1)
-
-        if self.rect.left <= TILESIZE or self.rect.right >= self.game.map.width - TILESIZE:
+        if self.rect.left <= 0.8*TILESIZE or self.rect.right >= self.game.map.width - 0.8*TILESIZE:
             self.pos.x += (self.vel.x * -1)
-        if self.rect.top <= TILESIZE or self.rect.bottom >= self.game.map.height - TILESIZE:
+            return True
+
+        if self.rect.top <= 0.8*TILESIZE or self.rect.bottom >= self.game.map.height - 0.8*TILESIZE:
             self.pos.y += (self.vel.y * -1)
+            return True
 
     def change_action(self, newaction):
         """ change action from e.g. jumping to falling.  First check current action to see if action has actually changed then return new actionvar"""
-
         if self.actionvar != newaction:
-
             self.actionvar = newaction
             self.timer = 0  # set timer at start of animation.  Resets to zero when switching to other animation
             self.current_frame_index = 0  # first animation slide
@@ -138,13 +143,14 @@ class Mobile_sprite(Static_sprite):
 
 class Player(Mobile_sprite):
 
-    runspeed = 4
+    runspeed = 8
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
         # self.image.fill(RED)
         self.direction = 'North'
+        self.directionKeys = [0, 0, 0, 0]  # see get_direction()
         self.dead = False
 
         self.current_grids = self.get_grids()  # grids for which player sprite overlaps
@@ -152,39 +158,25 @@ class Player(Mobile_sprite):
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
 
-    def get_keys(self):
-
-        keys = pygame.key.get_pressed()
-        directionKeys = [keys[pygame.K_RIGHT], keys[pygame.K_LEFT], keys[pygame.K_DOWN], keys[pygame.K_UP]]  # e.g. [1, 0, 0, 1] will return NorthEast from ORIENTATIONS
-        return directionKeys
-
-    def get_direction(self, directionKeys):
+    def get_direction(self):
         """compare directionKeys to ORIENTATIONS and return accordingly"""
+        keys = pygame.key.get_pressed()
+        self.directionKeys = [keys[pygame.K_RIGHT], keys[pygame.K_LEFT], keys[pygame.K_DOWN], keys[pygame.K_UP]]  # e.g. [1, 0, 0, 1] will return NorthEast from ORIENTATIONS
         for key, value in ORIENTATIONS.items():
-            if directionKeys == value:
+            if self.directionKeys == value:
                 self.direction = key
-
-    def find_unitvelocity(self, directionKeys):
-        """ return unit vector for velocity"""
-        self.vel += directionKeys[0] * vec(1, 0)   # up
-        self.vel += directionKeys[1] * vec(-1, 0)  # down
-        self.vel += directionKeys[2] * vec(0, 1)   # left
-        self.vel += directionKeys[3] * vec(0, -1)  # right
-
-        if self.vel != vec(0, 0):
-            self.newaction = "player_swim"
-            self.vel = self.vel.normalize()  # return unit vector -magnitude == 1 ( vec(1, 1) would have magnitude sqrt(2) without this step)
 
     def shoot(self):
 
         harpoonimg = 'harpoon' + self.direction  # image keyref according to direction being fired e.g. 'harpoonWest'
         missile_img = self.game.weapons_images[harpoonimg][0]
-        self.missile = Missile(self.game, 0, 0, 'harpoon', missile_img)
-        self.game.all_sprites.add(self.missile)
+        missile = Missile(self.game, 0, 0, 'harpoon', missile_img)
+        self.game.active_sprites.add(missile)
+        self.game.all_sprites.add(missile)
 
     def collide_enemy(self):
 
-        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))  # check hits to the right
+        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
 
         if hits:
             hits[0].dead = True  # currently mob is killed if it collides with player
@@ -204,10 +196,11 @@ class Player(Mobile_sprite):
         self.newaction = "player_idle"
 
         # Player movement
-        directionKeys = self.get_keys()
-        self.get_direction(directionKeys)
-        self.find_unitvelocity(directionKeys)
-        self.vel *= Player.runspeed
+        self.get_direction()
+        if self.get_unit_vel(self.directionKeys):
+            self.newaction = "player_swim"
+            self.vel *= Player.runspeed
+
         self.pos += self.vel
 
         # Check platform collision
@@ -221,10 +214,10 @@ class Player(Mobile_sprite):
         # player animation
         self.change_action(self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
-        self.current_frame_index = self.animate(0.5, self.current_animation[self.direction])
+        self.current_frame_index = self.animate(0.25, self.current_animation[self.direction])
         self.timer += self.game.dt
 
-        self.checkMapBoundaries()  # at map boundary?
+        self.atMapBoundaries()
 
 
 class Missile(Mobile_sprite):
@@ -234,18 +227,12 @@ class Missile(Mobile_sprite):
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game,  col, row, refkey, image)
         self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
+        # self.vel = game.player.vel.normalize() * Missile.runspeed
         self.direction = game.player.direction
-        self.find_unitvelocity()
+        self.get_unit_vel(ORIENTATIONS[self.direction])
         self.vel *= Missile.runspeed
-
-    def find_unitvelocity(self):
-
-        self.vel += ORIENTATIONS[self.direction][0] * vec(1, 0)
-        self.vel += ORIENTATIONS[self.direction][1] * vec(-1, 0)
-        self.vel += ORIENTATIONS[self.direction][2] * vec(0, 1)
-        self.vel += ORIENTATIONS[self.direction][3] * vec(0, -1)
-
-        self.vel = self.vel.normalize()  # return unit vector -magnitude == 1
+        self.vel.x += randrange(-2, 2, 1)  # vary the direction marginally
+        self.vel.y += randrange(-2, 2, 1)  # vary the direction marginally
 
     def collide_enemy(self):
 
@@ -259,13 +246,23 @@ class Missile(Mobile_sprite):
         self.pos += self.vel
         self.rect.center = self.pos
 
+        self.current_grids = self.get_grids()
+        for grid in self.current_grids:
+            if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
+                self.vel = vec(0, 0)
+                self.remove(self.game.active_sprites)  # not longer updated, drawn only
+
         self.collide_enemy()
 
-        # delete missile once it goes off the map (not the screen)
-        if self.pos.x < 0 or self.pos.x > self.game.map.width:
-            self.kill()
-        if self.pos.y < 0 or self.pos.y > self.game.map.height:
-            self.kill()
+        if self.atMapBoundaries():
+            self.vel = vec(0, 0)
+            self.remove(self.game.active_sprites)
+
+        # # delete missile once it goes off the map (not the screen)
+        # if self.pos.x < 0 or self.pos.x > self.game.map.width:
+        #     self.kill()
+        # if self.pos.y < 0 or self.pos.y > self.game.map.height:
+        #     self.kill()
 
 
 class Bubbles(Mobile_sprite):
