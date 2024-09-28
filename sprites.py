@@ -232,7 +232,7 @@ class Missile(Mobile_sprite):
         self.get_unit_vel(ORIENTATIONS[self.direction])
         self.vel *= Missile.runspeed
         self.vel.x += randrange(-2, 2, 1)  # vary the direction marginally
-        self.vel.y += randrange(-2, 2, 1)  # vary the direction marginally
+        self.vel.y += randrange(-2, 2, 1)
 
     def collide_enemy(self):
 
@@ -245,24 +245,21 @@ class Missile(Mobile_sprite):
 
         self.pos += self.vel
         self.rect.center = self.pos
-
-        self.current_grids = self.get_grids()
-        for grid in self.current_grids:
-            if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
-                self.vel = vec(0, 0)
-                self.remove(self.game.active_sprites)  # not longer updated, drawn only
+        self.current_grids = self.get_grids()  # update grid position
 
         self.collide_enemy()
 
+        # check platform collision
+        for grid in self.current_grids:
+            if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
+                self.vel = vec(0, 0)
+                self.add(self.game.hold_sprites)
+                self.remove(self.game.active_sprites)  # not longer updated, drawn only
+
         if self.atMapBoundaries():
             self.vel = vec(0, 0)
+            self.add(self.game.hold_sprites)
             self.remove(self.game.active_sprites)
-
-        # # delete missile once it goes off the map (not the screen)
-        # if self.pos.x < 0 or self.pos.x > self.game.map.width:
-        #     self.kill()
-        # if self.pos.y < 0 or self.pos.y > self.game.map.height:
-        #     self.kill()
 
 
 class Bubbles(Mobile_sprite):

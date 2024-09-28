@@ -224,7 +224,7 @@ class Game:
         # init sprite groups
         # self.platform_sprites = pygame.sprite.Group()
         self.mob_sprites = pygame.sprite.Group()
-        self.hold_sprites = pygame.sprite.Group()  # sprites not to be drawn (move sprites between hold and all_sprites if desired)
+        self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted once they go off screen
         self.active_sprites = pygame.sprite.Group()  # sprites which are updated every loop
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
@@ -266,6 +266,12 @@ class Game:
         """Game Loop - Update"""
         self.active_sprites.update()
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
+        # TODO kill sprites in hold_sprites group once they go off screen
+        for sprite in self.hold_sprites:
+            if sprite.rect.right < (0-self.camera.rect.left) or sprite.rect.left > (2*SCREENWIDTH-self.camera.rect.right):
+                sprite.kill()
+            if sprite.rect.bottom < (0-self.camera.rect.top) or sprite.rect.top > (2*SCREENHEIGHT-self.camera.rect.bottom):
+                sprite.kill()
         # for sprite in self.mob_sprites:
         #     self.camera.update(sprite)
 
@@ -308,7 +314,8 @@ class Game:
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
 
-        camera_position = str(self.camera.rect)
+        camera_position = (self.camera.rect.left, self.camera.rect.right)
+        camera_position = str(camera_position)
         self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT- 15)
 
         pos = str(self.player.pos)
