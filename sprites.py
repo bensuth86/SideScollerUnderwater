@@ -1,9 +1,10 @@
 import pygame
 from math import fabs, floor
-from math import sqrt as sqrt
+from math import sqrt, e, log, pi, acos
 from random import choice, randrange
 from settings import *
 from helpers.spritesheet_functions import *
+from helpers.vector_functions import *
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
@@ -64,7 +65,7 @@ class Mobile_sprite(Static_sprite):
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
         self.angle = 0  # angle subtended from vector (1, 0) i.e. anticlockwise from the x-axis
-        self.vel = vec(0, 0)  # unit vector to be multiplied by runspeed
+        # self.vel = vec(0, 0)  # unit vector to be multiplied by runspeed
 
         self.current_grids = self.get_grids()  # grids for which sprite overlaps
 
@@ -152,6 +153,7 @@ class Player(Mobile_sprite):
         self.direction = 'North'
         self.directionKeys = [0, 0, 0, 0]  # see get_direction()
         self.dead = False
+        self.vel = vec(0, 0)
 
         self.current_grids = self.get_grids()  # grids for which player sprite overlaps
         self.actionvar = "player_idle"  # current sprite action
@@ -228,6 +230,7 @@ class Missile(Mobile_sprite):
         super().__init__(game,  col, row, refkey, image)
         self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
         # self.vel = game.player.vel.normalize() * Missile.runspeed
+        self.vel = vec(0, 0)
         self.direction = game.player.direction
         self.get_unit_vel(ORIENTATIONS[self.direction])
         self.vel *= Missile.runspeed
@@ -268,6 +271,7 @@ class Bubbles(Mobile_sprite):
         super().__init__(game, col, row, refkey, image)
         self.current_animation = self.game.effects_images[self.refkey]
         self.timer = randrange(-4, 0)
+        self.vel = vec(0, 0)
 
     def update(self):
 
@@ -289,75 +293,75 @@ class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
     runspeed = 1
+    vel = vec(5, 0)  # initial velocity
+    max_speed = 10
     chase_player_rad = 20 * TILESIZE  # chase player if within radius
     attack_player_rad = 5 * TILESIZE  # attack player ""          ""
+
+    # turning parameters- trajectory follows log spiral path
+    Qrot = 1/100  # geometric progession of turning radius after subtends 360deg e.g. q = 0.1- radius 1/10 of initial radius.  Set to <1 by default for inward spiral
+    b = log(Qrot)/(2*pi)  # growth rate of the log spiral trajectory (inward by default)
+    k = -1  # control variable equal to +/- 1: determines whether to follow inward or outward spiral trajectory.  Default value of -1: inward spiral
+    theta = pi/75  # angle subtended every iteration
+    geo_pro = e ** (b * theta)  # geometric increase/ decrease of turning radius from origin for every increment
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
-        self.vel = vec(1, 0)
+        self.vel = Enemy.vel
         self.target_vec = self.vel  # displacement vector between player and enemy
         self.hitpoints = 10
-        self.upside_down = False
         self.deathanimation = self.game.effects_images['enemyDeath']
         self.current_animation = self.game.mob_images[self.refkey]
 
         Enemy.num_of_mobs += 1
 
-    def get_target_vector(self, target):
-        """Find new target vector from mob centre to target centre"""
-        self.target_vec = vec(target.rect.centerx, target.rect.centery) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
-
     def transform_image(self):
         """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
 
-        if (self.angle < -90 or self.angle > 90):
-            self.ref_image = pygame.transform.flip(self.ref_image, False, True)
+        # if (self.angle < -90 or self.angle > 90):
+        #     self.ref_image = pygame.transform.flip(self.ref_image, False, True)
         self.image = pygame.transform.rotate(self.ref_image, self.angle)
         # self.rect = self.image.get_rect(center=self.rect.center)
 
+    def get_target_vector(self, target):
+        """Find new target vector from mob centre to target centre"""
+        # self.target_vec = vec(target.rect.centerx, target.rect.centery) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
+        self.target_vec = vec(target.rect.x, target.rect.y) - vec(self.rect.x, self.rect.y)  # find new target vector
+
     def chase_player(self):
+        """ Switch from either log spriral or exp spiral trajectory to close in on target_vec"""
+        # if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
+        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+        direction = turn_direction(self.vel, self.target_vec)  # turn either clockwise or anticlockwise for shortest path towards player; anticlockwise: return -1, clockwise: return 1
 
-        if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
-            # self.turn_around()
-            self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
+        # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
+        prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
+        final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
+        new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
+        self.vel = new_vel
 
-            target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
-            if self.target_vec.x != 0:
-                target_direction.x = self.target_vec.x / fabs(self.target_vec.x)   # return -1, 1  for left, right respect. ...
-            if self.target_vec.y != 0:
-                target_direction.y = self.target_vec.y / fabs(self.target_vec.y)   # return -1, 1  for up, down respect. ...
+        self.current_trajectory(direction)  # determin spiral trajectory on next iteration (inward or outward spiral)
 
-            target_vel = self.target_vec.normalize() * self.runspeed  # velocity vector towards player position with magnitude equal to runspeed
+    def current_trajectory(self, direction):
+        """ Returns geometric progression for either log or exp spiral trajectory using control variable k: k=1 - inward spiral, k= -1 - outward spiral"""
+        alt_rad = get_radius_vector(self.vel, self.theta, 1/self.geo_pro, direction)  # radius vector from origin for outward spiral if currently following inward spiral path, and vice versa
+        target_rad = alt_rad - self.target_vec    # radius vector between target and origin of alternate spiral trajectory
+        delta = get_angle(target_rad, alt_rad)  # angle between turn_rad and target rad
+        dif = (alt_rad.length()*(1/self.geo_pro)**(delta/self.theta)) - target_rad.length()  # if difference = 0 for current ob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
+        d = dif/abs(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
 
-            # accelerate towards player
-            self.vel.x = sqrt(self.runspeed * fabs(target_vel.x))
-            self.vel.x *= target_direction.x
-            self.vel.y = sqrt(self.runspeed * fabs(target_vel.y))
-            self.vel.y *= target_direction.y
+        self.geo_pro = Enemy.geo_pro ** d
+
+    def limit_velocity(self):
+
+        speed = min(self.vel.length(), Enemy.max_speed)
+        self.vel = self.vel.normalize() * speed
 
     def attack_player(self):
 
         if self.target_vec.length() < self.attack_player_rad:
             self.vel = self.vel.normalize()*8
-
-    def turn_around(self):
-        """INCOMPLETE"""
-        """ After attacking player or if player enter chase radius turn to pursue player"""
-        target_vel = self.target_vec.normalize() * self.runspeed  # velocity vector towards player position with magnitude equal to runspeed
-        self.target_angle = vec(target_vel).angle_to(self.vel)  # angle sprite so facing target
-        dot_product = self.vel.dot(target_vel)
-        if dot_product < 0:  # angle between mob velocity and target velocity > 90 deg
-            turn_rate = 0.5
-            perpendicular = vec(-self.vel.y, self.vel.x)
-            turn_accn = perpendicular.normalize()*turn_rate
-            self.vel += turn_accn
-
-        target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
-        # if self.target_vel.x != 0:
-        #     target_direction.x = self.target_vel.x / fabs(self.target_vel.x)
-        # if self.target_vel.y != 0:
-        #     target_direction.y = self.target_vel.y / fabs(self.target_vel.y)
 
     def update(self):
 
@@ -367,14 +371,15 @@ class Enemy(Mobile_sprite):
 
         if self.hitpoints > 0:
             self.get_target_vector(self.game.player)  # find new target vector
-
+            # if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
             self.chase_player()
-            self.attack_player()
+            # self.attack_player()
             self.transform_image()  # must be after self.animate in order to transform current image
 
         # if self.target_vec.x * self.vel.x < 0 or self.target_vec.y * self.vel.y < 0:  # if moving away from player
         else:
             self.dead = True
+            self.remove(self.game.active_sprites)  # not longer updated, drawn only
             self.newaction = 'explode'
             self.current_animation = self.deathanimation
             self.change_action(self.newaction)  # change self.actionvar to new action
@@ -382,7 +387,9 @@ class Enemy(Mobile_sprite):
                 self.kill()
 
         self.rect.topleft = self.pos
+        self.limit_velocity()  # limit velocity magnitude
         self.pos += self.vel
+        print(self.vel.length())
 
 
 class Dartfish(Enemy):

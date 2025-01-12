@@ -73,7 +73,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        'daddyfish': Daddyfish
+        # 'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -186,6 +186,7 @@ class Game:
                 # load enemy sprites
                 if tile == 'E':
                     mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
+
                     img = self.mob_images[mobkey][0]
                     mob = Game.MOBCLASSES[mobkey](self, col, row, mobkey, img)
                     self.mob_sprites.add(mob)
@@ -265,15 +266,16 @@ class Game:
     def update(self):
         """Game Loop - Update"""
         self.active_sprites.update()
+        # TODO - limit holding group size
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
-        # TODO kill sprites in hold_sprites group once they go off screen
+        # for mob in self.mob_sprites:
+        #     self.camera.update(mob)
+
         for sprite in self.hold_sprites:
             if sprite.rect.right < (0-self.camera.rect.left) or sprite.rect.left > (2*SCREENWIDTH-self.camera.rect.right):
                 sprite.kill()
             if sprite.rect.bottom < (0-self.camera.rect.top) or sprite.rect.top > (2*SCREENHEIGHT-self.camera.rect.bottom):
                 sprite.kill()
-        # for sprite in self.mob_sprites:
-        #     self.camera.update(sprite)
 
     def draw_text(self, text, size, colour, x, y):
 
@@ -308,31 +310,40 @@ class Game:
         for sprite in self.all_sprites:
             sprite.draw()
 
-        # Testing only #
-        self.draw_grid()
+        # TESTING ONLY #
+        # self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
 
+        # camera.rect offset
         camera_position = (self.camera.rect.left, self.camera.rect.right)
         camera_position = str(camera_position)
-        self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT- 15)
+        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT- 15)
 
+        # player data
         pos = str(self.player.pos)
-        self.draw_text(pos, 22, RED, 100, 15)
+        # self.draw_text(pos, 22, RED, 100, 15)
         # self.draw_text(self.player.direction, 22, RED, SCREENWIDTH - 50, 15)
         velocity = str(self.player.vel)
-        self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
-        for mob in self.mob_sprites:
-            vel = (round(mob.vel[0], 3), round(mob.vel[1], 3))
-            speed = mob.vel.length()
-            vel = str(vel)
-            speed = str(round(speed))
+        # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
 
-            # self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
-            # angle = str(round(mob.angle, 1))
-            # target_angle = str(round(mob.target_angle, 1))
-            # self.draw_text(angle, 22, RED, 30, 30)
+        # mob data
+        for mob in self.mob_sprites:
+            vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
+            speed = str(round(mob.vel.length(), 1))
+            # target_angle = str(round(mob.target_angle, 0))
+
+            self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
+
+            # draw vectors
+            # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector
+            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
+            # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 3)  # target rad from player to origin
+
+            # pygame.draw.line(self.screen, YELLOW, (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), (mob.pos.x + mob.vel.x + mob.final_rad.x, mob.pos.y + mob.vel.y + mob.final_rad.y), 3)  # final rad from origin
+            # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), 3)  # velocity vector
+
         pygame.display.flip()  # *after* drawing everything, flip the display
 
     def show_start_screen(self):
