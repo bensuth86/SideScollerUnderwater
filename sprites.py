@@ -10,7 +10,7 @@ vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
 
 class Static_sprite(pygame.sprite.Sprite):
-    """Don't have velocity though may be animated"""
+    """PLatform, item, prop sprites. Single image sprites not animated """
     def __init__(self, game, col, row, refkey, image):
 
         pygame.sprite.Sprite.__init__(self)
@@ -22,17 +22,19 @@ class Static_sprite(pygame.sprite.Sprite):
         self.rect = image.get_rect()
         self.rect.topleft = self.pos
 
-    def animate(self, time_period, anim_reel):
+        self.refresh_rate = 1  # rate at which animation frame changes (=1 than changes every second
 
-        # frames = anim_reel  # list of sprite animations
-        current_frame_index = int((self.timer // time_period) % len(anim_reel))
-        self.image = anim_reel[current_frame_index]
-        return current_frame_index
+    # def animate(self, anim_reel):
+    #
+    #     # frames = anim_reel  # list of sprite animations
+    #     current_frame_index = int((self.timer // self.refresh_rate) % len(anim_reel))
+    #     self.image = anim_reel[current_frame_index]
+    #     return current_frame_index
 
-    def check_anim_end(self, time_period, anim_reel):
-        """ check if animation will return to 1st frame on next game loop"""
-        if int((self.timer // time_period) % len(anim_reel)) < self.current_frame_index:
-            return True
+    # def check_anim_end(self, anim_reel):
+    #     """ check if animation will return to 1st frame on next game loop"""
+    #     if int((self.timer // self.refresh_rate) % len(anim_reel)) < self.current_frame_index:
+    #         return True
 
     def draw(self):
 
@@ -57,7 +59,7 @@ class Pick_up(Static_sprite):
 
 
 class Mobile_sprite(Static_sprite):
-    """Mobile sprites defined as having velocity"""
+    """Mobile sprites animated and/ or have velocity"""
     def __init__(self, game, col, row, refkey, image):
 
         super().__init__(game, col, row, refkey, image)
@@ -141,6 +143,36 @@ class Mobile_sprite(Static_sprite):
             self.timer = 0  # set timer at start of animation.  Resets to zero when switching to other animation
             self.current_frame_index = 0  # first animation slide
 
+    def transform_image(self):
+        """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
+
+        # if (self.angle < -90 or self.angle > 90):
+        #     self.ref_image = pygame.transform.flip(self.ref_image, False, True)
+        self.image = pygame.transform.rotate(self.image, self.angle)
+        # self.rect = self.image.get_rect(center=self.rect.center)
+
+    def animate(self, anim_reel):
+        """Update current animation frame and transform image"""
+        # frames = anim_reel  # list of sprite animations
+
+        current_frame_index = int((self.timer // self.refresh_rate) % len(anim_reel))  # must be before self.timer updated for check_anim_end to work
+        self.timer += self.game.dt
+        self.image = anim_reel[current_frame_index]
+        self.transform_image()
+
+        return current_frame_index
+
+    def check_anim_end(self, anim_reel):
+        """ check if animation will return to 1st frame on next game loop"""
+
+        if int((self.timer // self.refresh_rate) % len(anim_reel)) < self.current_frame_index:
+            return True
+
+    def draw(self):
+
+        self.current_frame_index = self.animate(self.current_animation)
+        self.game.screen.blit(self.image, self.game.camera.apply(self))
+
 
 class Player(Mobile_sprite):
 
@@ -159,6 +191,7 @@ class Player(Mobile_sprite):
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
+        self.refresh_rate = 0.25
 
     def get_direction(self):
         """compare directionKeys to ORIENTATIONS and return accordingly"""
@@ -172,7 +205,7 @@ class Player(Mobile_sprite):
 
         harpoonimg = 'harpoon' + self.direction  # image keyref according to direction being fired e.g. 'harpoonWest'
         missile_img = self.game.weapons_images[harpoonimg][0]
-        missile = Missile(self.game, 0, 0, 'harpoon', missile_img)
+        missile = Missile(self.game, 0, 0, harpoonimg, missile_img)
         self.game.active_sprites.add(missile)
         self.game.all_sprites.add(missile)
 
@@ -181,9 +214,10 @@ class Player(Mobile_sprite):
         hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
 
         if hits:
-            hits[0].dead = True  # currently mob is killed if it collides with player
-            hits[0].remove(self.game.mob_sprites)  # remove from sprite group
-            hits[0].newaction = 'enemyDeath'  # mob sprite not deleted until after its death animation
+            # hits[0].dead = True  # currently mob is killed if it collides with player
+            # hits[0].remove(self.game.mob_sprites)  # remove from sprite group
+            # hits[0].newaction = 'enemyDeath'  # mob sprite not deleted until after its death animation
+            hits[0].hitpoints = 0
 
     def collide_pick_up(self, pick_ups):
 
@@ -193,6 +227,16 @@ class Player(Mobile_sprite):
             hits[0].apply_pickup(self)
 
     def update(self):
+
+        # Check platform collision
+        self.collide_platforms(0)  # check horizontal collision
+        self.collide_platforms(1)  # check vertical collision
+
+        self.atMapBoundaries()
+
+        # check sprite collisions
+        self.collide_enemy()
+        # self.collide_pick_up(self.game.pick_ups)
 
         self.vel = vec(0, 0)
         self.newaction = "player_idle"
@@ -205,21 +249,11 @@ class Player(Mobile_sprite):
 
         self.pos += self.vel
 
-        # Check platform collision
-        self.collide_platforms(0)  # check horizontal collision
-        self.collide_platforms(1)  # check vertical collision
-
-        # check sprite collisions
-        self.collide_enemy()
-        # self.collide_pick_up(self.game.pick_ups)
-
         # player animation
         self.change_action(self.newaction)  # change self.actionvar to new action
-        self.current_animation = self.game.player_images[self.actionvar]
-        self.current_frame_index = self.animate(0.25, self.current_animation[self.direction])
-        self.timer += self.game.dt
-
-        self.atMapBoundaries()
+        self.current_animation = self.game.player_images[self.actionvar][self.direction]
+        # self.current_frame_index = self.animate(self.current_animation[self.direction])
+        # self.timer += self.game.dt
 
 
 class Missile(Mobile_sprite):
@@ -228,6 +262,7 @@ class Missile(Mobile_sprite):
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game,  col, row, refkey, image)
+        self.current_animation = self.game.weapons_images[refkey]
         self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
         # self.vel = game.player.vel.normalize() * Missile.runspeed
         self.vel = vec(0, 0)
@@ -273,20 +308,22 @@ class Bubbles(Mobile_sprite):
         self.timer = randrange(-4, 0)
         self.vel = vec(0, 0)
 
+        self.refresh_rate = 0.2
+
     def update(self):
 
         self.pos += self.vel
         self.rect.bottomleft = self.pos
 
-        if self.check_anim_end(0.2, self.current_animation):
+        if self.check_anim_end(self.current_animation):
             respawnpoint = choice(self.game.spawnpoints)
             self.pos.x, self.pos.y = respawnpoint[0]*TILESIZE, respawnpoint[1]*TILESIZE
 
         if self.timer >= 0:
             self.vel = vec(0, -8)  # velocity vector
-            self.current_frame_index = self.animate(0.2, self.current_animation)
+            # self.current_frame_index = self.animate(self.current_animation)
 
-        self.timer += self.game.dt
+        # self.timer += self.game.dt
 
 
 class Enemy(Mobile_sprite):
@@ -294,7 +331,7 @@ class Enemy(Mobile_sprite):
     num_of_mobs = 0
     runspeed = 1
     vel = vec(5, 0)  # initial velocity
-    max_speed = 10
+    max_speed = 8
     chase_player_rad = 20 * TILESIZE  # chase player if within radius
     attack_player_rad = 5 * TILESIZE  # attack player ""          ""
 
@@ -314,14 +351,17 @@ class Enemy(Mobile_sprite):
         self.deathanimation = self.game.effects_images['enemyDeath']
         self.current_animation = self.game.mob_images[self.refkey]
 
+        self.refresh_rate = 0.2
+
         Enemy.num_of_mobs += 1
 
-    def transform_image(self):
-        """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
+    # def transform_image(self):
+    #     """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
 
         # if (self.angle < -90 or self.angle > 90):
         #     self.ref_image = pygame.transform.flip(self.ref_image, False, True)
-        self.image = pygame.transform.rotate(self.ref_image, self.angle)
+        # self.image = pygame.transform.rotate(self.ref_image, self.angle)
+        x=2
         # self.rect = self.image.get_rect(center=self.rect.center)
 
     def get_target_vector(self, target):
@@ -365,31 +405,42 @@ class Enemy(Mobile_sprite):
 
     def update(self):
 
-        self.current_frame_index = self.animate(0.2, self.current_animation)
-        self.timer += self.game.dt
-        self.ref_image = self.current_animation[self.current_frame_index]  # current animation frame before any transformation (rotation, flip etc)
+        # self.current_frame_index = self.animate(self.current_animation)
+        # self.timer += self.game.dt
+        # self.ref_image = self.current_animation[self.current_frame_index]  # current animation frame before any transformation (rotation, flip etc)
 
-        if self.hitpoints > 0:
-            self.get_target_vector(self.game.player)  # find new target vector
-            # if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
-            self.chase_player()
-            # self.attack_player()
-            self.transform_image()  # must be after self.animate in order to transform current image
+        # if self.hitpoints > 0:
+        #     self.get_target_vector(self.game.player)  # find new target vector
+        #     # if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
+        #     self.chase_player()
+        #     # self.attack_player()
+        #     self.transform_image()  # must be after self.animate in order to transform current image
+        #
+        # # if self.target_vec.x * self.vel.x < 0 or self.target_vec.y * self.vel.y < 0:  # if moving away from player
+        # else:
+        #     self.dead = True
+        #     self.remove(self.game.active_sprites)  # not longer updated, drawn only
+        #     self.newaction = 'explode'
+        #     self.current_animation = self.deathanimation
+        #     self.change_action(self.newaction)  # change self.actionvar to new action
+        #     if self.check_anim_end(0.2, self.current_animation):
+        #         self.kill()
 
-        # if self.target_vec.x * self.vel.x < 0 or self.target_vec.y * self.vel.y < 0:  # if moving away from player
-        else:
-            self.dead = True
-            self.remove(self.game.active_sprites)  # not longer updated, drawn only
+        self.get_target_vector(self.game.player)  # find new target vector
+        self.chase_player()
+        # self.transform_image()  # must be after self.animate in order to transform current image
+
+        if self.hitpoints <= 0:
+            self.remove(self.game.mob_sprites)
+            self.remove(self.game.active_sprites)
+            self.add(self.game.hold_sprites)
             self.newaction = 'explode'
             self.current_animation = self.deathanimation
             self.change_action(self.newaction)  # change self.actionvar to new action
-            if self.check_anim_end(0.2, self.current_animation):
-                self.kill()
 
-        self.rect.topleft = self.pos
         self.limit_velocity()  # limit velocity magnitude
         self.pos += self.vel
-        print(self.vel.length())
+        self.rect.topleft = self.pos
 
 
 class Dartfish(Enemy):

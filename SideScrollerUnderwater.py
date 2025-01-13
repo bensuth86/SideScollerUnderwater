@@ -266,11 +266,15 @@ class Game:
     def update(self):
         """Game Loop - Update"""
         self.active_sprites.update()
-        # TODO - limit holding group size
+
+        for sprite in self.hold_sprites:
+            sprite.rect.topleft += sprite.vel
+            if sprite.check_anim_end(sprite.current_animation):
+                sprite.kill()
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
         #     self.camera.update(mob)
-
+        # TODO - limit holding group size
         for sprite in self.hold_sprites:
             if sprite.rect.right < (0-self.camera.rect.left) or sprite.rect.left > (2*SCREENWIDTH-self.camera.rect.right):
                 sprite.kill()
