@@ -5,12 +5,8 @@ import random
 from string import ascii_uppercase
 from settings import *
 from helpers.spritesheet_functions import *
-from helpers.interval_trigger import *
 from helpers.transform_images import *
 from sprites import *
-
-# mob_spritesheet = SpriteSheet('mobs')
-# mob_images = mob_spritesheet.get_sprite_images(MOBS)
 
 
 class Camera:
@@ -109,11 +105,6 @@ class Game:
         self.weapons_images = self.weapons_spritesheet.get_sprite_images(WEAPONS)
         # self.playerswim_images = self.player_spritesheet.get_sprite_images("player_swim", PLAYERMOBSDIM)
 
-        # duplicate and transform images then append to dictionary
-        # for key, value in self.mob_images.items():
-        #     mobsInverted = flip_images(value, (False, True))  # upside down mobs
-        #     self.mob_images[key] = (value, mobsInverted)  # tuple for holding (Upfacing, Downfacing)  images
-
         # get effects sprites
         self.effects_images['enemyDeath2x1'] = resize_images(self.effects_images.get('enemyDeath'), (2*TILESIZE, 1*TILESIZE))
         self.effects_images['enemyDeath4x4'] = resize_images(self.effects_images.get('enemyDeath'), (4 * TILESIZE, 4 * TILESIZE))
@@ -211,10 +202,12 @@ class Game:
         random.shuffle(self.spawnpoints)
         for i, point in enumerate(self.spawnpoints):
 
-            # passive sprites (not updated)
+            # static sprites
             sprite = self.spawn_sprites(i, point, 200, Static_sprite, 'monument', self.prop_images)  # for every 200th floor tile spawn a monument
             sprite = self.spawn_sprites(i, point, 50, Static_sprite, 'Statue', self.prop_images)  # for every 50th floor tile spawn a statue
             sprite = self.spawn_sprites(i, point, 3, Static_sprite, 'vegetation', self.prop_images)
+
+            # mobile sprites
             sprite = self.spawn_sprites(i, point, 256, Bubbles, 'bubbles', self.effects_images)
             if sprite:
                 if sprite.refkey == 'bubbles':
@@ -223,7 +216,6 @@ class Game:
     def new(self):
         """Start a new game; load or reload map data, sprites"""
         # init sprite groups
-        # self.platform_sprites = pygame.sprite.Group()
         self.mob_sprites = pygame.sprite.Group()
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted once they go off screen
         self.active_sprites = pygame.sprite.Group()  # sprites which are updated every loop
