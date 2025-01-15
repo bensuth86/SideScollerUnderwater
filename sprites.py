@@ -306,11 +306,84 @@ class Bubbles(Mobile_sprite):
 class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
-    runspeed = 1
-    vel = vec(5, 0)  # initial velocity
-    max_speed = 8
-    chase_player_rad = 20 * TILESIZE  # chase player if within radius
+    chase_player_rad = 15 * TILESIZE  # chase player if within radius
     attack_player_rad = 5 * TILESIZE  # attack player ""          ""
+
+    def __init__(self, game, col, row, refkey, image):
+        super().__init__(game, col, row, refkey, image)
+
+        self.hitpoints = 10
+        self.deathanimation = self.game.effects_images['enemyDeath']
+        self.current_animation = self.game.mob_images[self.refkey]
+        self.refresh_rate = 0.2
+
+        self.target_vec = vec(1, 0)
+
+        Enemy.num_of_mobs += 1
+
+    def get_target_vector(self, target):
+        """Find new target vector from mob centre to target centre"""
+        self.target_vec = vec(target.rect.centerx, target.rect.centery) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
+
+    def attack_player(self):
+        """Currently shelved"""
+        if self.target_vec.length() < self.attack_player_rad:
+            self.vel = self.vel.normalize()*8
+
+
+class Daddyfish(Enemy):
+
+    def __init__(self, game, col, row, refkey, image):
+        super().__init__(game, col, row, refkey, image)
+
+        self.hitpoints = 100
+        self.runspeed = 1
+        self.vel = vec(self.runspeed, 0)
+        self.deathanimation = self.game.effects_images['enemyDeath4x4']
+
+    def chase_player(self):
+
+        if self.target_vec.length() < self.chase_player_rad:
+
+            self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
+
+            target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
+            if self.target_vec.x != 0:
+                target_direction.x = self.target_vec.x / fabs(self.target_vec.x)  # return -1, 1  for left, right respect. ...
+            if self.target_vec.y != 0:
+                target_direction.y = self.target_vec.y / fabs(self.target_vec.y)  # return -1, 1  for up, down respect. ...
+
+            target_vel = self.target_vec.normalize() * self.runspeed  # velocity vector towards player position with magnitude equal to runspeed
+
+            # accelerate towards player
+            self.vel.x = sqrt(self.runspeed * fabs(target_vel.x))
+            self.vel.x *= target_direction.x
+            self.vel.y = sqrt(self.runspeed * fabs(target_vel.y))
+            self.vel.y *= target_direction.y
+
+    def update(self):
+
+        self.get_target_vector(self.game.player)  # find new target vector
+        self.chase_player()
+
+        if self.hitpoints <= 0:
+            self.remove(self.game.mob_sprites)
+            self.remove(self.game.active_sprites)
+            self.add(self.game.hold_sprites)
+
+            # update animation reel to death animation
+            self.newaction = 'explode'
+            self.current_animation = self.deathanimation
+            self.change_action(self.newaction)  # change self.actionvar to new action
+
+        self.pos += self.vel
+        self.rect.topleft = self.pos
+
+
+class Dartfish(Enemy):
+
+    vel = vec(8, 0)  # initial velocity
+    max_speed = 12
 
     # turning parameters- trajectory follows log spiral path
     Qrot = 1/100  # geometric progession of turning radius after subtends 360deg e.g. q = 0.1- radius 1/10 of initial radius.  Set to <1 by default for inward spiral
@@ -322,34 +395,22 @@ class Enemy(Mobile_sprite):
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
-        self.vel = Enemy.vel
-        self.target_vec = self.vel  # displacement vector between player and enemy
-        self.hitpoints = 10
-        self.deathanimation = self.game.effects_images['enemyDeath']
-        self.current_animation = self.game.mob_images[self.refkey]
-
-        self.refresh_rate = 0.2
-
-        Enemy.num_of_mobs += 1
-
-    def get_target_vector(self, target):
-        """Find new target vector from mob centre to target centre"""
-        # self.target_vec = vec(target.rect.centerx, target.rect.centery) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
-        self.target_vec = vec(target.rect.x, target.rect.y) - vec(self.rect.x, self.rect.y)  # find new target vector
+        self.vel = Dartfish.vel
+        self.deathanimation = self.game.effects_images['enemyDeath2x1']
 
     def chase_player(self):
         """ Switch from either log spriral or exp spiral trajectory to close in on target_vec"""
-        # if self.attack_player_rad < self.target_vec.length() < self.chase_player_rad:
-        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
-        direction = turn_direction(self.vel, self.target_vec)  # turn either clockwise or anticlockwise for shortest path towards player; anticlockwise: return -1, clockwise: return 1
+        if self.target_vec.length() < self.chase_player_rad:
+            self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+            direction = turn_direction(self.vel, self.target_vec)  # turn either clockwise or anticlockwise for shortest path towards player; anticlockwise: return -1, clockwise: return 1
 
-        # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
-        prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
-        final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
-        new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
-        self.vel = new_vel
+            # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
+            prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
+            final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
+            new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
+            self.vel = new_vel
 
-        self.current_trajectory(direction)  # determin spiral trajectory on next iteration (inward or outward spiral)
+            self.current_trajectory(direction)  # determin spiral trajectory on next iteration (inward or outward spiral)
 
     def current_trajectory(self, direction):
         """ Returns geometric progression for either log or exp spiral trajectory using control variable k: k=1 - inward spiral, k= -1 - outward spiral"""
@@ -359,17 +420,12 @@ class Enemy(Mobile_sprite):
         dif = (alt_rad.length()*(1/self.geo_pro)**(delta/self.theta)) - target_rad.length()  # if difference = 0 for current ob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
         d = dif/abs(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
 
-        self.geo_pro = Enemy.geo_pro ** d
+        self.geo_pro = Dartfish.geo_pro ** d
 
     def limit_velocity(self):
 
-        speed = min(self.vel.length(), Enemy.max_speed)
+        speed = min(self.vel.length(), self.max_speed)
         self.vel = self.vel.normalize() * speed
-
-    def attack_player(self):
-
-        if self.target_vec.length() < self.attack_player_rad:
-            self.vel = self.vel.normalize()*8
 
     def update(self):
 
@@ -391,33 +447,16 @@ class Enemy(Mobile_sprite):
         self.rect.topleft = self.pos
 
 
-class Dartfish(Enemy):
+class Spinefish(Dartfish):
 
-    runspeed = 4
-    # runspeed = 1
-
-    def __init__(self, game, col, row, refkey, image):
-        super().__init__(game, col, row, refkey, image)
-
-        self.deathanimation = self.game.effects_images['enemyDeath2x1']
-
-
-class Spinefish(Enemy):
-
-    runspeed = 2
-    # runspeed = 1
+    vel = vec(4, 0)  # initial velocity
+    max_speed = 6
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
+        self.vel = Spinefish.vel
         self.hitpoints = 20
         self.deathanimation = self.game.effects_images['enemyDeath2x1']
 
 
-class Daddyfish(Enemy):
-
-    def __init__(self, game, col, row, refkey, image):
-        super().__init__(game, col, row, refkey, image)
-
-        self.hitpoints = 100
-        self.deathanimation = self.game.effects_images['enemyDeath4x4']

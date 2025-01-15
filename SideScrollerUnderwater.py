@@ -69,7 +69,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        # 'daddyfish': Daddyfish
+        'daddyfish': Daddyfish
     }
 
     def __init__(self):
