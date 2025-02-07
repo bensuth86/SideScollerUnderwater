@@ -1,10 +1,11 @@
 import pygame
 from math import fabs, floor
-from math import sqrt, e, log, pi, acos
+from math import sqrt, e, log, pi, tan, acos
 from random import choice, randrange
 from settings import *
 from helpers.spritesheet_functions import *
 from helpers.vector_functions import *
+from helpers.interval_trigger import *
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
@@ -200,7 +201,8 @@ class Player(Mobile_sprite):
         hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
 
         if hits:
-            hits[0].hitpoints = 0
+            # hits[0].hitpoints = 0
+            print("Collide")
 
     def collide_pick_up(self, pick_ups):
 
@@ -306,24 +308,27 @@ class Bubbles(Mobile_sprite):
 class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
-    chase_player_rad = 15 * TILESIZE  # chase player if within radius
+    chase_player_rad = 1000 * TILESIZE  # chase player if within radius
     attack_player_rad = 5 * TILESIZE  # attack player ""          ""
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
+        self.start_pos = vec(col, row) * TILESIZE  # for keeping mob within rad of starting position
         self.hitpoints = 10
         self.deathanimation = self.game.effects_images['enemyDeath']
         self.current_animation = self.game.mob_images[self.refkey]
         self.refresh_rate = 0.2
-
-        self.target_vec = vec(1, 0)
+        self.target_vec = vec(0, 0)
 
         Enemy.num_of_mobs += 1
 
     def get_target_vector(self, target):
-        """Find new target vector from mob centre to target centre"""
-        self.target_vec = vec(target.rect.centerx, target.rect.centery) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
+        """Find new target vector from mob centre to target centre.  Add varying % error to x, y components for more 'natural' path finding"""
+        x_targ = target[0]
+        y_targ = target[1]
+        self.target_vec = vec(x_targ, y_targ)- vec(self.rect.centerx, self.rect.centery)  # find new target vector
+        self.target_vec = vec(target[0], target[1]) - vec(self.rect.centerx, self.rect.centery)  # find new target vector
 
     def attack_player(self):
         """Currently shelved"""
@@ -363,7 +368,7 @@ class Daddyfish(Enemy):
 
     def update(self):
 
-        self.get_target_vector(self.game.player)  # find new target vector
+        self.get_target_vector(self.game.player.rect.center)  # find new target vector
         self.chase_player()
 
         if self.hitpoints <= 0:
@@ -382,14 +387,15 @@ class Daddyfish(Enemy):
 
 class Dartfish(Enemy):
 
-    vel = vec(8, 0)  # initial velocity
-    max_speed = 12
+    vel = vec(4, 0)  # initial velocity
+    max_speed = 16
+    territory_rad = 5 * TILESIZE
 
     # turning parameters- trajectory follows log spiral path
     Qrot = 1/100  # geometric progession of turning radius after subtends 360deg e.g. q = 0.1- radius 1/10 of initial radius.  Set to <1 by default for inward spiral
     b = log(Qrot)/(2*pi)  # growth rate of the log spiral trajectory (inward by default)
     k = -1  # control variable equal to +/- 1: determines whether to follow inward or outward spiral trajectory.  Default value of -1: inward spiral
-    theta = pi/75  # angle subtended every iteration
+    theta = pi/60  # angle subtended every iteration
     geo_pro = e ** (b * theta)  # geometric increase/ decrease of turning radius from origin for every increment
 
     def __init__(self, game, col, row, refkey, image):
@@ -397,30 +403,56 @@ class Dartfish(Enemy):
 
         self.vel = Dartfish.vel
         self.deathanimation = self.game.effects_images['enemyDeath2x1']
+        self.interval = randrange(3000, 4000)/1000  # time between implementing change in trajectory (seconds)
+        self.target = vec(0, 0)
+        self.target.x = self.start_pos.x - (randrange(0 - Dartfish.territory_rad, Dartfish.territory_rad))
+        self.target.y = self.start_pos.y - (randrange(0 - 0.5*Dartfish.territory_rad, 0.5*Dartfish.territory_rad))
+        self.delta = 2*pi
 
-    def chase_player(self):
+    def spiral_turn(self, direction):
         """ Switch from either log spriral or exp spiral trajectory to close in on target_vec"""
-        if self.target_vec.length() < self.chase_player_rad:
-            self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
-            direction = turn_direction(self.vel, self.target_vec)  # turn either clockwise or anticlockwise for shortest path towards player; anticlockwise: return -1, clockwise: return 1
 
-            # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
-            prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
-            final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
-            new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
-            self.vel = new_vel
+        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
-            self.current_trajectory(direction)  # determin spiral trajectory on next iteration (inward or outward spiral)
+        # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
+        prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
+        self.prev_rad = prev_rad
+        # self.current_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro), self.theta, direction)
+        final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
+        self.final_rad = final_rad
+        new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
+        self.vel = new_vel
 
-    def current_trajectory(self, direction):
-        """ Returns geometric progression for either log or exp spiral trajectory using control variable k: k=1 - inward spiral, k= -1 - outward spiral"""
+        return final_rad
+
+    def change_trajectory(self, direction):
+        """ Will switch geometric progression from inward to outward spiral path, so mob will intersect target at current target.pos
+            Uses control variable d: if d=1 will continue inward spiral by default, if d=-1 will switch to outward spiral path """
         alt_rad = get_radius_vector(self.vel, self.theta, 1/self.geo_pro, direction)  # radius vector from origin for outward spiral if currently following inward spiral path, and vice versa
         target_rad = alt_rad - self.target_vec    # radius vector between target and origin of alternate spiral trajectory
-        delta = get_angle(target_rad, alt_rad)  # angle between turn_rad and target rad
-        dif = (alt_rad.length()*(1/self.geo_pro)**(delta/self.theta)) - target_rad.length()  # if difference = 0 for current ob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
-        d = dif/abs(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
+        delta = get_angleii(alt_rad, target_rad, direction)
+        dif = (alt_rad.length()*((1/self.geo_pro)**(delta/self.theta))) - target_rad.length()  # if difference = 0 for current mob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
 
-        self.geo_pro = Dartfish.geo_pro ** d
+        c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
+        c = 1 if self.vel.length() > Dartfish.max_speed else c  # if vel exceeds max limit force inward path
+        self.geo_pro = Dartfish.geo_pro ** c
+
+    def change_trajectoryii(self, final_rad, direction):
+
+        target_rad = final_rad - self.target_vec  # radius vector between target and origin of alternate spiral trajectory
+        delta = get_angleii(final_rad, target_rad, direction)
+        dif = (final_rad.length() * (self.geo_pro ** (delta / self.theta))) - target_rad.length()
+        c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
+
+        self.geo_pro = Dartfish.geo_pro ** c
+
+    def chase_target(self):
+
+        direction = turn_direction(self.pos, self.vel, self.target_vec)
+        final_rad = self.spiral_turn(direction)
+
+        self.change_trajectory(direction)
+        # self.change_trajectoryii(final_rad, direction)
 
     def limit_velocity(self):
 
@@ -429,8 +461,11 @@ class Dartfish(Enemy):
 
     def update(self):
 
-        self.get_target_vector(self.game.player)  # find new target vector
-        self.chase_player()
+        if self.target_vec.length() < self.chase_player_rad:
+
+            self.get_target_vector(self.game.player.rect.center)  # find new target vector
+            self.target_vec += 5*self.vel  # adjust target according to players current vel
+            self.chase_target()
 
         if self.hitpoints <= 0:
             self.remove(self.game.mob_sprites)
@@ -442,7 +477,7 @@ class Dartfish(Enemy):
             self.current_animation = self.deathanimation
             self.change_action(self.newaction)  # change self.actionvar to new action
 
-        self.limit_velocity()  # limit velocity magnitude
+        # self.limit_velocity()  # limit velocity magnitude
         self.pos += self.vel
         self.rect.topleft = self.pos
 
@@ -450,7 +485,7 @@ class Dartfish(Enemy):
 class Spinefish(Dartfish):
 
     vel = vec(4, 0)  # initial velocity
-    max_speed = 6
+    max_speed = 12
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)

@@ -69,7 +69,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        'daddyfish': Daddyfish
+        # 'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -222,7 +222,7 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
         # generate sprites
-        self.player = Player(self, 6, 16, 'player', self.player_images['player_idle']['North'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+        self.player = Player(self, 7, 10, 'player', self.player_images['player_idle']['North'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
         self.active_sprites.add(self.player)
         self.all_sprites.add(self.player)
         self.read_map_data()
@@ -326,6 +326,10 @@ class Game:
 
         # mob data
         for mob in self.mob_sprites:
+            target = vec(0, 0)
+            target.x = mob.pos.x - mob.target_vec.x
+            target.y = mob.pos.y - mob.target_vec.y
+            # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
@@ -334,10 +338,11 @@ class Game:
 
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector
+            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x * 10, mob.pos.y + mob.vel.y *  10), 3)  # velocity vector
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
-            # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 3)  # target rad from player to origin
+            # pygame.draw.line(self.screen, YELLOW, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 6)  # target rad from player to origin
+            # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.actual_rad.x, self.player.pos.y + mob.actual_rad.y), 3)  # final rad after subtending angle delta
 
-            # pygame.draw.line(self.screen, YELLOW, (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), (mob.pos.x + mob.vel.x + mob.final_rad.x, mob.pos.y + mob.vel.y + mob.final_rad.y), 3)  # final rad from origin
             # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), 3)  # velocity vector
 
         pygame.display.flip()  # *after* drawing everything, flip the display
