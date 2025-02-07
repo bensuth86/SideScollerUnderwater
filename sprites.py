@@ -1,6 +1,6 @@
 import pygame
 from math import fabs, floor
-from math import sqrt, e, log, pi, tan, acos
+from math import sqrt, e, log
 from random import choice, randrange
 from settings import *
 from helpers.spritesheet_functions import *
@@ -416,10 +416,8 @@ class Dartfish(Enemy):
 
         # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
         prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, direction)  # radius from spiral origin to position on previous iteration
-        self.prev_rad = prev_rad
         # self.current_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro), self.theta, direction)
         final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, direction)  # radius from origin after self.pos updated with new_vel
-        self.final_rad = final_rad
         new_vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
         self.vel = new_vel
 
@@ -437,27 +435,11 @@ class Dartfish(Enemy):
         c = 1 if self.vel.length() > Dartfish.max_speed else c  # if vel exceeds max limit force inward path
         self.geo_pro = Dartfish.geo_pro ** c
 
-    def change_trajectoryii(self, final_rad, direction):
-
-        target_rad = final_rad - self.target_vec  # radius vector between target and origin of alternate spiral trajectory
-        delta = get_angleii(final_rad, target_rad, direction)
-        dif = (final_rad.length() * (self.geo_pro ** (delta / self.theta))) - target_rad.length()
-        c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
-
-        self.geo_pro = Dartfish.geo_pro ** c
-
     def chase_target(self):
 
         direction = turn_direction(self.pos, self.vel, self.target_vec)
-        final_rad = self.spiral_turn(direction)
-
+        self.spiral_turn(direction)
         self.change_trajectory(direction)
-        # self.change_trajectoryii(final_rad, direction)
-
-    def limit_velocity(self):
-
-        speed = min(self.vel.length(), self.max_speed)
-        self.vel = self.vel.normalize() * speed
 
     def update(self):
 

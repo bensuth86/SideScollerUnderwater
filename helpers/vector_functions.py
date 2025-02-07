@@ -1,5 +1,5 @@
 from pygame.math import Vector2 as vec
-from math import sin, cos, asin, acos, atan2, sqrt, pi
+from math import sin, cos, acos, atan2, sqrt, pi
 
 #  Vector function for turning
 
