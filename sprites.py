@@ -137,8 +137,8 @@ class Mobile_sprite(Static_sprite):
         """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
 
         if (self.angle < -90 or self.angle > 90):
-            self.image = pygame.transform.flip(self.image, False, True)
-        self.image = pygame.transform.rotate(self.image, self.angle)
+            self.image = pygame.transform.flip(self.image, False, True)  # flip image
+        self.image = pygame.transform.rotate(self.image, self.angle)  # rotate image
 
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
@@ -201,9 +201,9 @@ class Player(Mobile_sprite):
 
         hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
 
-        if hits:
+        # if hits:
             # hits[0].hitpoints = 0
-            print("Collide")
+            # print("Collide")
 
     def collide_pick_up(self, pick_ups):
 
@@ -310,7 +310,7 @@ class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
     chase_player_rad = 10 * TILESIZE  # chase player if within radius
-    territory_rad = 8 * TILESIZE
+    # territory_rad = 8 * TILESIZE
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
@@ -322,61 +322,72 @@ class Enemy(Mobile_sprite):
         self.refresh_rate = 0.2
 
         self.target = vec(0, 0)
-        self.target.x = self.start_pos.x + 5*TILESIZE
-        self.target.y = self.start_pos.y
-        self.target_vec = vec(0, 0)
+        self.target.x = self.start_pos.x - 5*TILESIZE
+        self.target.y = self.start_pos.y + 1*TILESIZE
+        self.get_target_vector(self.target)
 
         Enemy.num_of_mobs += 1
 
-    def get_target_vector(self):
+    def get_target_vector(self, target):
         """Find new target vector from mob centre to target centre."""
 
-        new_target_vec = self.target - vec(self.rect.centerx, self.rect.centery)
-        # self.target_vec = new_target_vec
+        new_target_vec = target - vec(self.rect.centerx, self.rect.centery)
         self.target_vec = new_target_vec or self.target_vec  # if new_target_vec is zero return previous target_vec
+
+    def switch_target(self, pct, interval):
+        """ Intermittently switch target position by a precentage of the target vector for less predictable mob movement.
+        Amount target pos varies decreases as mob approaches target"""
+        swc = switch_interval(self.timer, interval)  # switch target every second (returns either 0 or -1)
+        d = swc or 1  # either 1 or -1
+        pdlr_target_vec = vec(d*self.target_vec.y, -d*self.target_vec.x)  # clockwise / anticlockwise perpendicular target vec
+
+        # vary target position by +/- error margin equivalent to 10% of the perpendicular target vector
+        # self.target.x = self.target.x + (pdlr_target_vec.x * pct)
+        # self.target.y = self.target.y + (pdlr_target_vec.y * pct)
+        x_error = pdlr_target_vec.x * pct
+        y_error = pdlr_target_vec.y * pct
+        adj_target = vec(self.target.x + x_error, self.target.y + y_error)  # target_position adjusted for % error
+        return adj_target
 
 
 class Daddyfish(Enemy):
 
-    territory_rad = 24 * TILESIZE
+    territory_rad = 10 * TILESIZE
+    speed = 2  # initial velocity
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
         self.hitpoints = 100
-        self.runspeed = 1
-        self.vel = vec(self.runspeed, 0)
+        self.vel = vec(Daddyfish.speed, 0)
         self.deathanimation = self.game.effects_images['enemyDeath4x4']
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
 
     def idle_swim(self):
 
-        trig = interval_trigger(self.timer, self.interval, self.game.dt)
+        # trig = interval_trigger(self.timer, self.interval, self.game.dt)
         lower_x = max(4 * TILESIZE, self.start_pos.x - Daddyfish.territory_rad)  # lower limit x axis
         upper_x = min(self.start_pos.x + Daddyfish.territory_rad, self.game.map.width - (4 * TILESIZE))  # lower limit y axis
-        if trig:
-            self.target.x = randrange(lower_x, upper_x, 12 * TILESIZE)
+        if self.target_vec.length() < TILESIZE:
+            self.target.x = randrange(lower_x, upper_x, 2 * TILESIZE)
 
     def chase_target(self):
 
         # if self.target_vec.length() < self.chase_player_rad:
 
-        self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
+        # self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
+        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
         target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
         target_direction.x = sign(self.target_vec.x)  # return -1, 1  for left, right respect. ...
         target_direction.y = sign(self.target_vec.y)  # return -1, 1  for up, down respect. ...
-        # if self.target_vec.x != 0:
-        #     target_direction.x = self.target_vec.x / fabs(self.target_vec.x)  # return -1, 1  for left, right respect. ...
-        # if self.target_vec.y != 0:
-        #     target_direction.y = self.target_vec.y / fabs(self.target_vec.y)  # return -1, 1  for up, down respect. ...
 
-        target_vel = self.target_vec.normalize() * self.runspeed  # velocity vector towards player position with magnitude equal to runspeed
-
+        target_vel = self.target_vec.normalize() * Daddyfish.speed  # velocity vector towards player position with magnitude equal to runspeed
+        print(target_direction)
         # accelerate towards player
-        self.vel.x = sqrt(self.runspeed * fabs(target_vel.x))
+        self.vel.x = sqrt(self.speed * fabs(target_vel.x))
         self.vel.x *= target_direction.x
-        self.vel.y = sqrt(self.runspeed * fabs(target_vel.y))
+        self.vel.y = sqrt(self.speed * fabs(target_vel.y))
         self.vel.y *= target_direction.y
 
     def update(self):
@@ -389,7 +400,8 @@ class Daddyfish(Enemy):
         self.idle_swim()
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        self.get_target_vector()  # find new target vector
+        # adj_target = self.switch_target(0.5, 1)  # add a % error to the target which switches between +/- error every second
+        self.get_target_vector(self.target)  # find new target vector
         self.chase_target()
 
         if self.hitpoints <= 0:
@@ -408,7 +420,7 @@ class Daddyfish(Enemy):
 
 class Dartfish(Enemy):
 
-    vel = vec(4, 0)  # initial velocity
+    vel = vec(6, 0)  # initial velocity
     max_speed = 16
     territory_rad = 8 * TILESIZE
 
@@ -425,9 +437,6 @@ class Dartfish(Enemy):
         self.vel = Dartfish.vel
         self.deathanimation = self.game.effects_images['enemyDeath2x1']
         self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
-        # self.target = vec(0, 0)
-        # self.target.x = self.start_pos.x
-        # self.target.y = self.start_pos.y
         self.delta = 2*pi
 
     def spiral_turn(self, direction):
@@ -453,7 +462,9 @@ class Dartfish(Enemy):
         dif = (alt_rad.length()*((1/self.geo_pro)**(delta/self.theta))) - target_rad.length()  # if difference = 0 for current mob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
 
         c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
-        c = 1 if self.vel.length() > Dartfish.max_speed else c  # if vel exceeds max limit force inward path
+        # TODO minimum speed - switch to outward path
+        c = 1 if self.vel.length() > (Dartfish.max_speed + (0.2*c*Dartfish.max_speed)) else c  # if vel exceeds max limit force inward path
+
         self.geo_pro = Dartfish.geo_pro ** c
 
     def chase_target(self):
@@ -476,13 +487,11 @@ class Dartfish(Enemy):
         # self.collide_platforms(0)  # check horizontal collision
         # self.collide_platforms(1)  # check vertical collision
         self.atMapBoundaries()
-
         self.idle_swim()
-
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-            self.target += 5*self.game.player.vel  # adjust target according to players current vel
-        self.get_target_vector()  # find new target vector
+        adj_target = self.switch_target(0.5, 0.5)  # # add a % error to the target which switches between +/- error every second
+        self.get_target_vector(adj_target)  # find new target vector
         self.chase_target()
 
         if self.hitpoints <= 0:
@@ -502,7 +511,7 @@ class Dartfish(Enemy):
 
 class Spinefish(Dartfish):
 
-    vel = vec(6, 0)  # initial velocity
+    vel = vec(4, 0)  # initial velocity
     max_speed = 12
 
     def __init__(self, game, col, row, refkey, image):

@@ -330,7 +330,8 @@ class Game:
             target = vec(0, 0)
             target.x = mob.pos.x - mob.target_vec.x
             target.y = mob.pos.y - mob.target_vec.y
-            pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
+            # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
+            pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
