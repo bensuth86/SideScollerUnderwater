@@ -6,6 +6,7 @@ from settings import *
 from helpers.spritesheet_functions import *
 from helpers.vector_functions import *
 from helpers.interval_trigger import *
+from helpers.logisticGrowth_fnc import *
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
@@ -309,7 +310,7 @@ class Bubbles(Mobile_sprite):
 class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
-    chase_player_rad = 10 * TILESIZE  # chase player if within radius
+    chase_player_rad = 30 * TILESIZE  # chase player if within radius
     # territory_rad = 8 * TILESIZE
 
     def __init__(self, game, col, row, refkey, image):
@@ -353,13 +354,13 @@ class Enemy(Mobile_sprite):
 class Daddyfish(Enemy):
 
     territory_rad = 10 * TILESIZE
-    speed = 2  # initial velocity
+    maxspeed = 4
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
         self.hitpoints = 100
-        self.vel = vec(Daddyfish.speed, 0)
+        self.vel = vec(1, 0)
         self.deathanimation = self.game.effects_images['enemyDeath4x4']
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
 
@@ -372,23 +373,16 @@ class Daddyfish(Enemy):
             self.target.x = randrange(lower_x, upper_x, 2 * TILESIZE)
 
     def chase_target(self):
+        """Get acceleration vector directed to target and return new velocity.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
-        # if self.target_vec.length() < self.chase_player_rad:
+        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite so facing target
 
-        # self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
-        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+        accn = 0.1  # acceleration magnitude
+        drag_coeff = accn / Daddyfish.maxspeed  # friction/ drag coefficient
 
-        target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
-        target_direction.x = sign(self.target_vec.x)  # return -1, 1  for left, right respect. ...
-        target_direction.y = sign(self.target_vec.y)  # return -1, 1  for up, down respect. ...
-
-        target_vel = self.target_vec.normalize() * Daddyfish.speed  # velocity vector towards player position with magnitude equal to runspeed
-        print(target_direction)
-        # accelerate towards player
-        self.vel.x = sqrt(self.speed * fabs(target_vel.x))
-        self.vel.x *= target_direction.x
-        self.vel.y = sqrt(self.speed * fabs(target_vel.y))
-        self.vel.y *= target_direction.y
+        accn_vec = vec(self.target_vec.normalize() * accn)
+        self.vel.x = self.vel.x + accn_vec.x - (drag_coeff * self.vel.x)
+        self.vel.y = self.vel.y + accn_vec.y - (drag_coeff * self.vel.y)
 
     def update(self):
 
@@ -400,8 +394,8 @@ class Daddyfish(Enemy):
         self.idle_swim()
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        # adj_target = self.switch_target(0.5, 1)  # add a % error to the target which switches between +/- error every second
-        self.get_target_vector(self.target)  # find new target vector
+        adj_target = self.switch_target(0.01, 1)  # add a % error to the target which switches between +/- error every second
+        self.get_target_vector(adj_target)  # find new target vector
         self.chase_target()
 
         if self.hitpoints <= 0:

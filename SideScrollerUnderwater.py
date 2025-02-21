@@ -336,7 +336,7 @@ class Game:
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
 
-            # self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
+            self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
 
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector

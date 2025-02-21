@@ -1,11 +1,3 @@
-def direction_vector(self):
-    direction = vec(0, 0)
-    if self.vel.x != 0:
-        direction.x = self.vel.x / fabs(self.vel.x)
-    if self.vel.y != 0:
-        direction.y = self.vel.y / fabs(self.vel.y)
-
-
 def increment_angle(self, target_angle):
     """Not using this function"""
     if not target_angle - 5 < self.current_angle < target_angle + 5:  # if current angle not within +/- 5 degrees of target_angle
@@ -15,20 +7,27 @@ def increment_angle(self, target_angle):
 
         self.rot_image(self.current_angle)
 
+# Daddyfish #
 
-def chase_player_old(self):
+def chase_target(self):
+    # self.angle = vec(self.target_vec.x, self.target_vec.y).angle_to(vec(1, 0))  # angle sprite so facing target
+    self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
-    if self.target_vec.length() < self.chase_player_rad:
-        target_vel = self.target_vec.normalize() * self.runspeed  # velocity vector towards player position with magnitude equal to runspeed
-        x_direction = vec(target_vel.x, 0).normalize()  # return 1, 0 or -1, 0
-        y_direction = vec(0, target_vel.y).normalize()  # return 0, 1 or 0, -1
-        target_direction = x_direction + y_direction
+    target_direction = vec(0, 0)  # e.g. (1, 0) travelling to right of screen (no y component)
+    target_direction.x = sign(self.target_vec.x)  # return -1, 1  for left, right respect. ...
+    target_direction.y = sign(self.target_vec.y)  # return -1, 1  for up, down respect. ...
 
-        self.vel.x = sqrt(self.runspeed * fabs(target_vel.x)) * target_direction.x
-        self.vel.y = sqrt(self.runspeed * fabs(target_vel.y)) * target_direction.y
+    target_vel = self.target_vec.normalize() * Daddyfish.maxspeed  # velocity vector towards player position with magnitude equal to runspeed
+    print(target_vel)
+    # accelerate towards player
 
-        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+    self.vel.x = sqrt(self.maxspeed * fabs(target_vel.x))
+    self.vel.x *= target_direction.x
+    self.vel.y = sqrt(self.maxspeed * fabs(target_vel.y))
+    self.vel.y *= target_direction.y
 
+
+# Dartfish #
 
 def switch_direction(self):
     """ Change direction intermittently to follow a less predictable path"""
