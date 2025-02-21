@@ -67,8 +67,8 @@ class Game:
 
     screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
     MOBCLASSES = {
-        # 'dartfish': Dartfish,
-        # 'spinefish': Spinefish,
+        'dartfish': Dartfish,
+        'spinefish': Spinefish,
         'daddyfish': Daddyfish
     }
 
@@ -87,7 +87,8 @@ class Game:
 
         # load background textures
         self.background = pygame.image.load(BACKGROUND).convert()
-
+        # self.background = pygame.Surface([width, height]).convert()
+        # image.set_colorkey(BLACK)  # set background to be transparent
         # init spritesheets
         self.platform_spritesheet = SpriteSheet('platforms')  # takes file name (not inc file extension)
         self.props_spritesheet = SpriteSheet('props')
@@ -277,6 +278,7 @@ class Game:
 
         font = pygame.font.Font('freesansbold.ttf', size)  # text font
         text_surface = font.render(text, True, colour)
+        text_surface.convert()
         text_rect = text_surface.get_rect()
         text_rect.center = (x, y)
         self.screen.blit(text_surface, text_rect)
@@ -301,7 +303,7 @@ class Game:
     def draw(self):
         """Game Loop - draw"""
         pygame.display.set_caption("{:.2f}".format(self.clock.get_fps()))
-        self.screen.blit(self.background, (0, 0))  # draw background
+        self.screen.blit(self.background, (self.camera.rect.x, self.camera.rect.y))  # draw background
 
         for sprite in self.all_sprites:
             sprite.draw()
@@ -316,7 +318,7 @@ class Game:
         # camera.rect offset
         camera_position = (self.camera.rect.left, self.camera.rect.right)
         camera_position = str(camera_position)
-        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT- 15)
+        self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
         pos = str(self.player.pos)
@@ -331,12 +333,12 @@ class Game:
             target.x = mob.pos.x - mob.target_vec.x
             target.y = mob.pos.y - mob.target_vec.y
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
-            pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)
+            # pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
 
-            self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
+            # self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
 
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector

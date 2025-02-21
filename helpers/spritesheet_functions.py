@@ -11,14 +11,13 @@ class SpriteSheet:
     def __init__(self, filename):
 
         imgfile = path.join(repos, 'spritesheets', filename + ".png")
-        self.spritesheet = pygame.image.load(imgfile).convert_alpha()
+        self.spritesheet = pygame.image.load(imgfile).convert()
         self.xmlfile = path.join(repos, 'spritesheets', filename + ".xml")
 
     def get_image(self, x, y, width, height):
 
         image = pygame.Surface([width, height]).convert()  # Create a new blank image
         image.blit(self.spritesheet, (0, 0), (x, y, width, height))
-
         image.set_colorkey(BLACK)  # set background to be transparent
         return image
 

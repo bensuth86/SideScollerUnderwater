@@ -6,7 +6,6 @@ from settings import *
 from helpers.spritesheet_functions import *
 from helpers.vector_functions import *
 from helpers.interval_trigger import *
-from helpers.logisticGrowth_fnc import *
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
@@ -24,7 +23,7 @@ class Static_sprite(pygame.sprite.Sprite):
         self.rect = image.get_rect()
         self.rect.topleft = self.pos
 
-        self.refresh_rate = 1  # rate at which animation frame changes (=1 than changes every second
+        self.refresh_rate = 1  # rate at which animation changes frame (=1 than changes every second
 
     def draw(self):
 
@@ -58,15 +57,12 @@ class Mobile_sprite(Static_sprite):
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
         self.angle = 0  # angle subtended from vector (1, 0) i.e. anticlockwise from the x-axis
-        # self.vel = vec(0, 0)  # unit vector to be multiplied by runspeed
-
-        self.current_grids = self.get_grids()  # grids for which sprite overlaps
-
+        self.current_grids = self.get_grids()  # grids which sprite overlaps
         self.actionvar = "idle"  # current sprite action
         self.newaction = "idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
 
         # handle animations
-        self.timer = 0  # used to trigger next frame for animations (can set to -ve value to delay start of an animation
+        self.timer = 0  # used to trigger next frame for animations (can set to -ve value to delay start of an animation)
         self.current_frame_index = 0  # used to check if at end of animation reel i.e. at next game loop animation will start over
 
     def get_unit_vel(self, directionKeys):
@@ -115,6 +111,8 @@ class Mobile_sprite(Static_sprite):
             overlap = 0.5*d*(self.rect.size[axis] + totalhits[0].rect.size[axis]) - (totalhits[0].rect.center[axis] - self.rect.center[axis])
             self.pos[axis] -= overlap  # reset position so no longer colliding
             self.rect[axis] = self.pos[axis]  # update rect position
+
+            return True
 
     def atMapBoundaries(self):
         """ Check if at map boundaries (collision detection not used for platforms at boundary)"""
@@ -173,10 +171,8 @@ class Player(Mobile_sprite):
         # self.image.fill(RED)
         self.direction = 'North'
         self.directionKeys = [0, 0, 0, 0]  # see get_direction()
-        self.dead = False
         self.vel = vec(0, 0)
 
-        self.current_grids = self.get_grids()  # grids for which player sprite overlaps
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
@@ -216,9 +212,9 @@ class Player(Mobile_sprite):
     def update(self):
 
         # Check platform collision
+
         self.collide_platforms(0)  # check horizontal collision
         self.collide_platforms(1)  # check vertical collision
-
         self.atMapBoundaries()
 
         # check sprite collisions
@@ -269,19 +265,19 @@ class Missile(Mobile_sprite):
         self.rect.center = self.pos
         self.current_grids = self.get_grids()  # update grid position
 
-        self.collide_enemy()
-
         # check platform collision
+        collide = False
         for grid in self.current_grids:
             if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
-                self.vel = vec(0, 0)
-                self.add(self.game.hold_sprites)
-                self.remove(self.game.active_sprites)  # not longer updated, drawn only
-
+                collide = True
         if self.atMapBoundaries():
+            collide = True
+        if collide:
             self.vel = vec(0, 0)
             self.add(self.game.hold_sprites)
             self.remove(self.game.active_sprites)
+
+        self.collide_enemy()
 
 
 class Bubbles(Mobile_sprite):
@@ -310,13 +306,11 @@ class Bubbles(Mobile_sprite):
 class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
-    chase_player_rad = 30 * TILESIZE  # chase player if within radius
-    # territory_rad = 8 * TILESIZE
+    chase_player_rad = 15 * TILESIZE  # chase player if within radius
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
-        # self.start_pos = vec(col, row) * TILESIZE  # for keeping mob within rad of starting position
         self.hitpoints = 10
         self.deathanimation = self.game.effects_images['enemyDeath']
         self.current_animation = self.game.mob_images[self.refkey]
@@ -324,7 +318,7 @@ class Enemy(Mobile_sprite):
 
         self.target = vec(0, 0)
         self.target.x = self.start_pos.x - 5*TILESIZE
-        self.target.y = self.start_pos.y + 1*TILESIZE
+        self.target.y = self.start_pos.y
         self.get_target_vector(self.target)
 
         Enemy.num_of_mobs += 1
@@ -343,12 +337,35 @@ class Enemy(Mobile_sprite):
         pdlr_target_vec = vec(d*self.target_vec.y, -d*self.target_vec.x)  # clockwise / anticlockwise perpendicular target vec
 
         # vary target position by +/- error margin equivalent to 10% of the perpendicular target vector
-        # self.target.x = self.target.x + (pdlr_target_vec.x * pct)
-        # self.target.y = self.target.y + (pdlr_target_vec.y * pct)
         x_error = pdlr_target_vec.x * pct
         y_error = pdlr_target_vec.y * pct
         adj_target = vec(self.target.x + x_error, self.target.y + y_error)  # target_position adjusted for % error
         return adj_target
+
+    def idle_swim(self, territory_rad):
+
+        # trig = interval_trigger(self.timer, self.interval, self.game.dt)
+        lower_x = max(4 * TILESIZE, self.start_pos.x - territory_rad)  # lower limit x axis
+        upper_x = min(self.start_pos.x + territory_rad, self.game.map.width - (4 * TILESIZE))  # upper limit x axis
+        lower_y = max(4 * TILESIZE, self.start_pos.y - 0.5 * territory_rad)  # lower limit x axis
+        upper_y = min(self.start_pos.y + 0.5 * territory_rad, self.game.map.height - (4 * TILESIZE))  # upper limit x axis
+
+        if self.target_vec.length() < TILESIZE:
+            self.target.x = randrange(lower_x, upper_x, 2 * TILESIZE)
+            self.target.y = randrange(lower_y, upper_y, 2 * TILESIZE)
+
+    def death(self):
+
+        if self.hitpoints <= 0:
+            self.angle = 0
+            self.remove(self.game.mob_sprites)
+            self.remove(self.game.active_sprites)
+            self.add(self.game.hold_sprites)
+
+            # update animation reel to death animation
+            self.newaction = 'explode'
+            self.current_animation = self.deathanimation
+            self.change_action(self.newaction)  # change self.actionvar to new action
 
 
 class Daddyfish(Enemy):
@@ -363,14 +380,6 @@ class Daddyfish(Enemy):
         self.vel = vec(1, 0)
         self.deathanimation = self.game.effects_images['enemyDeath4x4']
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
-
-    def idle_swim(self):
-
-        # trig = interval_trigger(self.timer, self.interval, self.game.dt)
-        lower_x = max(4 * TILESIZE, self.start_pos.x - Daddyfish.territory_rad)  # lower limit x axis
-        upper_x = min(self.start_pos.x + Daddyfish.territory_rad, self.game.map.width - (4 * TILESIZE))  # lower limit y axis
-        if self.target_vec.length() < TILESIZE:
-            self.target.x = randrange(lower_x, upper_x, 2 * TILESIZE)
 
     def chase_target(self):
         """Get acceleration vector directed to target and return new velocity.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
@@ -391,22 +400,13 @@ class Daddyfish(Enemy):
         # self.collide_platforms(1)  # check vertical collision
         self.atMapBoundaries()
 
-        self.idle_swim()
+        self.idle_swim(Daddyfish.territory_rad)
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        adj_target = self.switch_target(0.01, 1)  # add a % error to the target which switches between +/- error every second
+        adj_target = self.switch_target(0.05, 1)  # add a % error to the target which switches between +/- error every second
         self.get_target_vector(adj_target)  # find new target vector
         self.chase_target()
-
-        if self.hitpoints <= 0:
-            self.remove(self.game.mob_sprites)
-            self.remove(self.game.active_sprites)
-            self.add(self.game.hold_sprites)
-
-            # update animation reel to death animation
-            self.newaction = 'explode'
-            self.current_animation = self.deathanimation
-            self.change_action(self.newaction)  # change self.actionvar to new action
+        self.death()
 
         self.pos += self.vel
         self.rect.topleft = self.pos
@@ -467,37 +467,20 @@ class Dartfish(Enemy):
         self.spiral_turn(direction)
         self.change_trajectory(direction)
 
-    def idle_swim(self):
-
-        trig = interval_trigger(self.timer, self.interval, self.game.dt)
-        lower_x = max(4 * TILESIZE, self.start_pos.x - Dartfish.territory_rad)  # lower limit x axis
-        upper_x = min(self.start_pos.x + Dartfish.territory_rad, self.game.map.width - (4 * TILESIZE))  # lower limit y axis
-        if trig:
-            self.target.x = randrange(lower_x, upper_x, 2 * TILESIZE)
-
     def update(self):
 
         # Check platform collision
         # self.collide_platforms(0)  # check horizontal collision
         # self.collide_platforms(1)  # check vertical collision
         self.atMapBoundaries()
-        self.idle_swim()
+
+        self.idle_swim(Dartfish.territory_rad)
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
         adj_target = self.switch_target(0.5, 0.5)  # # add a % error to the target which switches between +/- error every second
         self.get_target_vector(adj_target)  # find new target vector
         self.chase_target()
-
-        if self.hitpoints <= 0:
-
-            self.remove(self.game.mob_sprites)
-            self.remove(self.game.active_sprites)
-            self.add(self.game.hold_sprites)
-
-            # update animation reel to death animation
-            self.newaction = 'explode'
-            self.current_animation = self.deathanimation
-            self.change_action(self.newaction)  # change self.actionvar to new action
+        self.death()
 
         self.pos += self.vel
         self.rect.topleft = self.pos
