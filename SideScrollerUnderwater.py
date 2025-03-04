@@ -266,7 +266,7 @@ class Game:
         self.active_sprites.update()
 
         for sprite in self.hold_sprites:
-            sprite.rect.topleft += sprite.vel
+            sprite.pos += sprite.vel
             if sprite.check_anim_end(sprite.current_animation):
                 sprite.kill()
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
@@ -314,10 +314,9 @@ class Game:
         for sprite in self.all_sprites:
             sprite.draw()
 
-
         # TESTING ONLY #
 
-        self.draw_grid()
+        # self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
@@ -333,6 +332,7 @@ class Game:
         # self.draw_text(self.player.direction, 22, RED, SCREENWIDTH - 50, 15)
         velocity = str(self.player.vel)
         # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
+        pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)
 
         # mob data
         for mob in self.mob_sprites:
@@ -343,7 +343,7 @@ class Game:
             target.x = mob.pos.x - mob.target_vec.x
             target.y = mob.pos.y - mob.target_vec.y
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
-            # pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)
+            # pygame.draw.circle(self.screen, RED, (int(mob.rect.centerx), int(mob.rect.centery)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
