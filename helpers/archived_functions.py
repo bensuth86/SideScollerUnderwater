@@ -1,3 +1,24 @@
+def get_gridsi(self, rect):
+    """ Return grid or multiple grids if between boundaries to check for collisions"""
+
+    # TODO update function for include more than 2 grids for rects longer than GRIDSIZE
+    def lookupgrid(pos):
+        x, y = int(pos[0]), int(pos[1])
+        x = min((self.game.map.width - 2 * TILESIZE), x)  # limit possible x pos to within map width (2340)
+        y = min((self.game.map.height - 2 * TILESIZE), y)  # 900
+        grid_col = (x - TILESIZE) // GRIDWIDTH
+        grid_row = (y - TILESIZE) // GRIDHEIGHT
+        return self.game.grid_squares[grid_row][grid_col]
+
+    grids = map(lookupgrid, (rect.topleft,
+                             rect.topright,
+                             rect.bottomleft,
+                             rect.bottomright))
+    grids = list(set(grids))  # return grids minus duplicates
+
+    return grids
+
+
 def increment_angle(self, target_angle):
     """Not using this function"""
     if not target_angle - 5 < self.current_angle < target_angle + 5:  # if current angle not within +/- 5 degrees of target_angle

@@ -69,7 +69,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        'daddyfish': Daddyfish
+        # 'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -131,8 +131,10 @@ class Game:
         AZ = list(ascii_uppercase)  # list alphabet A-Z
         AZZ = AZ + list(ascii_uppercase) + [letter1+letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
 
-        x_grids = int((self.map.width - 2*TILESIZE)/GRIDWIDTH)  # total count of grid squares along map length
-        y_grids = int((self.map.height - 2*TILESIZE)/GRIDHEIGHT)  # total ""            "" map height
+        # x_grids = int((self.map.width - 2*TILESIZE)/GRIDWIDTH)  # total count of grid squares along map length
+        # y_grids = int((self.map.height - 2*TILESIZE)/GRIDHEIGHT)  # total ""            "" map height
+        x_grids = int(self.map.width/GRIDWIDTH) # total count of grid squares along map length
+        y_grids = int(self.map.height/GRIDHEIGHT)  # total ""            "" map height
 
         # generate grid squares
         for j in range(y_grids):
@@ -141,9 +143,10 @@ class Game:
             for i in range(x_grids):
                 y_coord = str(i+1)  # '1'
                 grid_ref = (x_coord+y_coord)  # 'A1'
-                x1, y1 = TILESIZE + (i*GRIDWIDTH), TILESIZE + (j*GRIDHEIGHT)  # top left corner
+                # x1, y1 = TILESIZE + (i*GRIDWIDTH), TILESIZE + (j*GRIDHEIGHT)  # top left corner
+                x1, y1 = (i * GRIDWIDTH), (j * GRIDHEIGHT)  # top left corner
                 x2, y2 = x1+GRIDWIDTH, y1+GRIDHEIGHT  # bottom right corner
-                grid = Grid(grid_ref, x1, y1, x2, y2)
+                grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
                 grid_row.append(grid)
             self.grid_squares.append(grid_row)  # each row nested list within main list
 
@@ -151,8 +154,10 @@ class Game:
         """ static sprites; platforms, pickups etc assigned on game init.  Mobile sprites reassigned as they travel across the map"""
 
         (x_coord, y_coord) = sprite.rect.center
-        grid_col = (x_coord-TILESIZE)//GRIDWIDTH
-        grid_row = (y_coord-TILESIZE)//GRIDHEIGHT
+        # grid_col = (x_coord-TILESIZE)//GRIDWIDTH
+        # grid_row = (y_coord-TILESIZE)//GRIDHEIGHT
+        grid_col = x_coord//GRIDWIDTH
+        grid_row = y_coord//GRIDHEIGHT
         self.grid_squares[grid_row][grid_col].add(sprite)
 
     def read_map_data(self):
@@ -223,7 +228,7 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
         # generate sprites
-        self.player = Player(self, 7, 10, 'player', self.player_images['player_idle']['North'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+        self.player = Player(self, 12, 15, 'player', self.player_images['player_idle']['North'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
         self.active_sprites.add(self.player)
         self.all_sprites.add(self.player)
         self.read_map_data()
@@ -266,6 +271,7 @@ class Game:
                 sprite.kill()
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
+
         #     self.camera.update(mob)
         # TODO - limit holding group size
         for sprite in self.hold_sprites:
@@ -308,9 +314,10 @@ class Game:
         for sprite in self.all_sprites:
             sprite.draw()
 
+
         # TESTING ONLY #
 
-        # self.draw_grid()
+        self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
@@ -318,7 +325,7 @@ class Game:
         # camera.rect offset
         camera_position = (self.camera.rect.left, self.camera.rect.right)
         camera_position = str(camera_position)
-        self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
+        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
         pos = str(self.player.pos)
@@ -329,6 +336,9 @@ class Game:
 
         # mob data
         for mob in self.mob_sprites:
+            # pygame.draw.rect(self.screen, RED, mob.rect, 2)
+            # pygame.draw.rect(self.screen, WHITE, mob.hitrectH, 2)
+            # pygame.draw.rect(self.screen, WHITE, mob.hitrectV, 2)
             target = vec(0, 0)
             target.x = mob.pos.x - mob.target_vec.x
             target.y = mob.pos.y - mob.target_vec.y
@@ -338,7 +348,7 @@ class Game:
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
 
-            # self.draw_text(speed, 22, RED, SCREENWIDTH - 100, 15)
+            # self.draw_text(vel, 22, RED, SCREENWIDTH - 100, 15)
 
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector

@@ -56,5 +56,6 @@ def get_radius_vector(vel, theta, geo_pro, direction):
     beta = acos((vel.length() ** 2 + rad0_mag ** 2 - (geo_pro * rad0_mag) ** 2) / (2 * vel.length() * rad0_mag))  # angle between initial velocity and turning radius
     ceta = acos((vel.length() ** 2 + (geo_pro * rad0_mag) ** 2 - rad0_mag ** 2) / (2 * vel.length() * geo_pro * rad0_mag))  # for verification only
     test = theta + beta + ceta  # should equal pi (180 deg) - for verification only
+
     rad_0 = vec_trans(vel, rad0_mag, beta, direction)  # radius vector from origin for previous iteration
     return rad_0
