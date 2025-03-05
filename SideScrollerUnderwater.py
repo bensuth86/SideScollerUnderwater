@@ -9,6 +9,26 @@ from helpers.transform_images import *
 from sprites import *
 
 
+# HUD functions
+
+def draw_player_health(surf, x, y, pct):
+
+    pct = max(0, pct)
+    bar_length = 100
+    bar_height = 20
+    fill = pct * bar_length
+    outline_rect = pygame.Rect(x, y, bar_length, bar_height)
+    fill_rect = pygame.Rect(x, y, fill, bar_height)
+    if pct > 0.6:
+        col = GREEN
+    elif pct > 0.3:
+        col = YELLOW
+    else:
+        col = RED
+    pygame.draw.rect(surf, col, fill_rect)
+    pygame.draw.rect(surf, WHITE, outline_rect, 2)
+
+
 class Camera:
 
     def __init__(self, game):
@@ -47,6 +67,8 @@ class Map:
 
         self.width = len(self.data[0]) * TILESIZE  # pixel width of the map
         self.height = len(self.data) * TILESIZE
+        self.LHS, self.RHS = TILESIZE, self.width - TILESIZE
+        self.top, self.btm = TILESIZE, self.height - TILESIZE
 
 
 class Grid(pygame.sprite.Group):
@@ -69,7 +91,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        # 'daddyfish': Daddyfish
+        'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -89,6 +111,7 @@ class Game:
         self.background = pygame.image.load(BACKGROUND).convert()
         # self.background = pygame.Surface([width, height]).convert()
         # image.set_colorkey(BLACK)  # set background to be transparent
+
         # init spritesheets
         self.platform_spritesheet = SpriteSheet('platforms')  # takes file name (not inc file extension)
         self.props_spritesheet = SpriteSheet('props')
@@ -104,7 +127,6 @@ class Game:
         self.player_images = self.player_spritesheet.get_sprite_images(PLAYER)
         self.mob_images = self.mob_spritesheet.get_sprite_images(MOBS)
         self.weapons_images = self.weapons_spritesheet.get_sprite_images(WEAPONS)
-        # self.playerswim_images = self.player_spritesheet.get_sprite_images("player_swim", PLAYERMOBSDIM)
 
         # get effects sprites
         self.effects_images['enemyDeath2x1'] = resize_images(self.effects_images.get('enemyDeath'), (2*TILESIZE, 1*TILESIZE))
@@ -131,9 +153,7 @@ class Game:
         AZ = list(ascii_uppercase)  # list alphabet A-Z
         AZZ = AZ + list(ascii_uppercase) + [letter1+letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
 
-        # x_grids = int((self.map.width - 2*TILESIZE)/GRIDWIDTH)  # total count of grid squares along map length
-        # y_grids = int((self.map.height - 2*TILESIZE)/GRIDHEIGHT)  # total ""            "" map height
-        x_grids = int(self.map.width/GRIDWIDTH) # total count of grid squares along map length
+        x_grids = int(self.map.width/GRIDWIDTH)  # total count of grid squares along map length
         y_grids = int(self.map.height/GRIDHEIGHT)  # total ""            "" map height
 
         # generate grid squares
@@ -143,7 +163,6 @@ class Game:
             for i in range(x_grids):
                 y_coord = str(i+1)  # '1'
                 grid_ref = (x_coord+y_coord)  # 'A1'
-                # x1, y1 = TILESIZE + (i*GRIDWIDTH), TILESIZE + (j*GRIDHEIGHT)  # top left corner
                 x1, y1 = (i * GRIDWIDTH), (j * GRIDHEIGHT)  # top left corner
                 x2, y2 = x1+GRIDWIDTH, y1+GRIDHEIGHT  # bottom right corner
                 grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
@@ -154,8 +173,6 @@ class Game:
         """ static sprites; platforms, pickups etc assigned on game init.  Mobile sprites reassigned as they travel across the map"""
 
         (x_coord, y_coord) = sprite.rect.center
-        # grid_col = (x_coord-TILESIZE)//GRIDWIDTH
-        # grid_row = (y_coord-TILESIZE)//GRIDHEIGHT
         grid_col = x_coord//GRIDWIDTH
         grid_row = y_coord//GRIDHEIGHT
         self.grid_squares[grid_row][grid_col].add(sprite)
@@ -314,6 +331,9 @@ class Game:
         for sprite in self.all_sprites:
             sprite.draw()
 
+        # HUD functions
+        draw_player_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.health / Player.health)
+
         # TESTING ONLY #
 
         # self.draw_grid()
@@ -337,8 +357,8 @@ class Game:
         # mob data
         for mob in self.mob_sprites:
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
-            # pygame.draw.rect(self.screen, WHITE, mob.hitrectH, 2)
-            # pygame.draw.rect(self.screen, WHITE, mob.hitrectV, 2)
+            # pygame.draw.rect(self.screen, WHITE, mob.avoidRectH, 2)
+            # pygame.draw.rect(self.screen, WHITE, mob.avoidRectV, 2)
             target = vec(0, 0)
             target.x = mob.pos.x - mob.target_vec.x
             target.y = mob.pos.y - mob.target_vec.y

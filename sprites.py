@@ -23,7 +23,7 @@ class Static_sprite(pygame.sprite.Sprite):
         self.rect = image.get_rect()
         self.rect.topleft = self.pos
 
-        self.refresh_rate = 1  # rate at which animation changes frame (=1 than changes every second
+        self.refresh_rate = 1  # rate animation changes slide (0.5 - changes twice per second)
 
     def draw(self):
 
@@ -61,7 +61,7 @@ class Mobile_sprite(Static_sprite):
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
         self.angle = 0  # angle subtended from vector (1, 0) i.e. anticlockwise from the x-axis
-        # self.current_grids = self.get_grids(self.pos)  # grids which sprite overlaps
+        self.current_grids = self.get_grids(self.hitrect)  # grids which sprite overlaps
         self.actionvar = "idle"  # current sprite action
         self.newaction = "idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
 
@@ -107,13 +107,13 @@ class Mobile_sprite(Static_sprite):
         self.current_grids = self.get_grids(self.hitrect)  # must be before spritecollide
         totalhits = []  # if colling with sprites in multiple grids when between grid boundaries
         for grid in self.current_grids:
-            # hits = pygame.sprite.spritecollide(self, grid, False)
             hits = pygame.sprite.spritecollide(hitrect, grid, False, self.collide_rect)
             totalhits += hits
 
         if totalhits:
 
             d = sign(self.vel[axis])  # direction of travel: left = -1, right = 1, up = -1, down = 1
+
             # overlap between self.hitrect and platform.rect
             overlap = 0.5*d*(self.hitrect.size[axis] + totalhits[0].rect.size[axis]) - (totalhits[0].rect.center[axis] - self.hitrect.center[axis])
             self.pos[axis] -= overlap  # reset position so no longer colliding
@@ -124,8 +124,8 @@ class Mobile_sprite(Static_sprite):
     def atMapBoundaries(self):
         """ Check if at map boundaries (collision detection not used for platforms at boundary)"""
 
-        self.pos.x = max(min(self.game.map.width - 1/2*self.hitrect.width - TILESIZE, self.pos.x), TILESIZE + 1/2*self.hitrect.width)
-        self.pos.y = max(min(self.game.map.height - 1/2*self.hitrect.height - TILESIZE, self.pos.y), TILESIZE + 1/2*self.hitrect.height)
+        self.pos.x = max(min(self.game.map.RHS - 1/2*self.hitrect.width, self.pos.x), self.game.map.LHS + 1/2*self.hitrect.width)
+        self.pos.y = max(min(self.game.map.btm - 1/2*self.hitrect.height, self.pos.y), self.game.map.top + 1/2*self.hitrect.height)
 
     def change_action(self, newaction):
         """ change action from e.g. jumping to falling.  First check current action to see if action has actually changed then return new actionvar"""
@@ -134,7 +134,7 @@ class Mobile_sprite(Static_sprite):
             self.timer = 0  # set timer at start of animation.  Resets to zero when switching to other animation
             self.current_frame_index = 0  # first animation slide
 
-    def rotate_about_centre(self, angle, centre, origin):
+    def rotate_about_centre(self, angle):
 
         surf = pygame.transform.rotate(self.ref_image, angle)  # rotate image
         # offset = centre + (origin - centre).rotate(-angle)  # rotate image around a pivot point. e.g. centre of screen
@@ -146,8 +146,8 @@ class Mobile_sprite(Static_sprite):
 
         if self.angle < -90 or self.angle > 90:
             self.ref_image = pygame.transform.flip(self.ref_image, False, True)  # flip image
-        # self.image = pygame.transform.rotate(self.ref_image, self.angle)  # rotate image
-        self.image, self.rect = self.rotate_about_centre(self.angle, self.pos, vec(self.rect.center))
+
+        self.image, self.rect = self.rotate_about_centre(self.angle)
 
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
@@ -175,6 +175,7 @@ class Mobile_sprite(Static_sprite):
 class Player(Mobile_sprite):
 
     runspeed = 8
+    health = 100
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
@@ -187,7 +188,9 @@ class Player(Mobile_sprite):
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
-        self.refresh_rate = 0.25
+        self.refresh_rate = 0.25  # rate animation changes slide (0.5 - changes twice per second)
+
+        self.health = Player.health
 
     def get_direction(self):
         """compare directionKeys to ORIENTATIONS and return accordingly"""
@@ -209,9 +212,11 @@ class Player(Mobile_sprite):
 
         hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
 
-        if hits:
-            print("Collide")
-            # hits[0].hitpoints = 0
+        for hit in hits:
+            self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
+
+            # hit.vel = 0.9 * hit.vel.length() * hit.vel.normalize()  # reduce speed by 90 %
+            # self.vel = 0.1 * self.vel.length() * self.vel.normalize()  # reduce speed by 10 %
 
     def collide_pick_up(self, pick_ups):
 
@@ -219,6 +224,11 @@ class Player(Mobile_sprite):
         if hits:
             hits[0].kill()  # delete sprite
             hits[0].apply_pickup(self)
+
+    def death(self):
+
+        if self.health < 0:
+            print("Dead")
 
     def update(self):
 
@@ -235,6 +245,7 @@ class Player(Mobile_sprite):
             self.newaction = "player_swim"
             self.vel *= Player.runspeed
 
+        self.death()
         self.pos += self.vel
 
         # Check platform collision
@@ -274,13 +285,12 @@ class Missile(Mobile_sprite):
 
         # TODO Fix collision with map boundaries
 
-        self.current_grids = self.get_grids(self.hitrect)  # update grid position
+        self.current_grids = self.get_grids(self.rect)  # update grid position
         collide = False
         for grid in self.current_grids:
             if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
                 collide = True
-        if self.atMapBoundaries():
-            collide = True
+
         if collide:
             self.vel = vec(0, 0)
             self.add(self.game.hold_sprites)
@@ -319,8 +329,9 @@ class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
 
-    chase_player_rad = 1 * TILESIZE  # chase player if within radius
-    avoidRect_length = 6 * TILESIZE
+    chase_player_rad = 5 * TILESIZE  # chase player if within radius
+    avoidRect_length = 6 * TILESIZE  # rect for detecting platforms/ walls
+    mob_damage = 1  # deducted from player health (damage inflicted)
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
@@ -354,22 +365,24 @@ class Enemy(Mobile_sprite):
                 d = sign(wallvec.dot(self.target_vec))  # if vel in same direction as target_vec (dot product > 0), switch target to be behind player (reflect coords about player pos line of symetry)
                 self.target[axis] = self.pos[axis] - d*(self.target[axis] - self.pos[axis])
 
+        return avoidRect
+
     def get_target_vector(self, target):
         """Find new target vector from mob centre to target centre."""
 
         new_target_vec = target - vec(self.rect.centerx, self.rect.centery)
         self.target_vec = new_target_vec or self.target_vec  # if new_target_vec is zero return previous target_vec
 
-    def switch_target(self, pct, interval):
+    def switch_target(self):
         """ Intermittently switch target position by a precentage of the target vector for less predictable mob movement.
         Amount target pos varies decreases as mob approaches target"""
-        swc = switch_interval(self.timer, interval)  # switch target every second (returns either 0 or -1)
+        swc = switch_interval(self.timer, self.__class__.switch_freq)  # switch target every second (returns either 0 or -1)
         d = swc or 1  # either 1 or -1
         pdlr_target_vec = vec(d*self.target_vec.y, -d*self.target_vec.x)  # clockwise / anticlockwise perpendicular target vec
 
         # vary target position by +/- error margin equivalent to 10% of the perpendicular target vector
-        x_error = pdlr_target_vec.x * pct
-        y_error = pdlr_target_vec.y * pct
+        x_error = pdlr_target_vec.x * self.__class__.error_margin
+        y_error = pdlr_target_vec.y * self.__class__.error_margin
 
         adjust_target = vec(self.target.x + x_error, self.target.y + y_error)  # target_position adjusted for % error
         return adjust_target
@@ -399,11 +412,40 @@ class Enemy(Mobile_sprite):
             self.current_animation = self.deathanimation
             self.change_action(self.newaction)  # change self.actionvar to new action
 
+    def update(self, *args):
+
+        self.idle_swim(self.__class__.territory_rad)
+        if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
+            self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
+        self.avoidRectH = self.avoid_walls(self.avoidRectH, 0)
+        self.avoidRectV = self.avoid_walls(self.avoidRectV, 1)
+        adjust_target = self.switch_target()  # add a % error to the target which switches between +/- error every second
+        self.limit_target_vec()  # limit target_vec to within map boundaries
+        self.get_target_vector(adjust_target)  # find new target vector
+        self.chase_target()
+        self.death()
+        self.pos += self.vel
+
+        self.avoidRectH.midleft = self.hitrect.center
+        self.avoidRectH.width *= sign(self.vel.x)
+        self.avoidRectH.normalize()  # avoid negative values for width, height- illegal for rect.collide
+
+        self.avoidRectV.midtop = self.hitrect.center
+        self.avoidRectV.height *= sign(self.vel.y)
+        self.avoidRectV.normalize()
+
+        # Check platform collision
+        self.atMapBoundaries()
+        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
+        self.collide_platforms(self.hitrect, 1)  # check vertical collision
+
 
 class Daddyfish(Enemy):
 
     territory_rad = 10 * TILESIZE
     maxspeed = 6
+    error_margin = 0.5  # percentage error for tracking target vec
+    switch_freq = 2  # switch to new target every n seconds
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
@@ -417,7 +459,6 @@ class Daddyfish(Enemy):
         """Get acceleration vector directed to target and return new velocity.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
         self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite so facing target
-        # self.angle += 2
 
         accn = 0.1  # acceleration magnitude
         drag_coeff = accn / Daddyfish.maxspeed  # friction/ drag coefficient
@@ -426,39 +467,14 @@ class Daddyfish(Enemy):
         self.vel.x = self.vel.x + accn_vec.x - (drag_coeff * self.vel.x)
         self.vel.y = self.vel.y + accn_vec.y - (drag_coeff * self.vel.y)
 
-    def update(self):
-
-        self.idle_swim(Daddyfish.territory_rad)
-        if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
-            self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        self.avoid_walls(self.avoidRectH, 0)
-        self.avoid_walls(self.avoidRectV, 1)
-        adjust_target = self.switch_target(0.5, 2)  # add a % error to the target which switches between +/- error every second
-        self.limit_target_vec()  # limit target_vec to within map boundaries
-        self.get_target_vector(adjust_target)  # find new target vector
-        self.chase_target()
-        self.death()
-        self.pos += self.vel
-
-        self.avoidRectH.midleft = self.hitrect.center
-        self.avoidRectH.width = Enemy.avoidRect_length * sign(self.vel.x)
-        self.avoidRectH.normalize()  # avoid negative values for width, height- illegal for rect.collide
-
-        self.avoidRectV.midtop = self.hitrect.center
-        self.avoidRectV.height = Enemy.avoidRect_length * sign(self.vel.y)
-        self.avoidRectV.normalize()
-
-        # Check platform collision
-        self.atMapBoundaries()
-        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
-        self.collide_platforms(self.hitrect, 1)  # check vertical collision
-
 
 class Dartfish(Enemy):
 
     vel = vec(6, 0)  # initial velocity
     max_speed = 16
     territory_rad = 8 * TILESIZE
+    error_margin = 0.5  # percentage error for tracking target vec
+    switch_freq = 2  # switch to new target every n seconds
 
     # turning parameters- trajectory follows log spiral path
     Qrot = 1/100  # geometric progession of turning radius after subtends 360deg e.g. q = 0.1- radius 1/10 of initial radius.  Set to <1 by default for inward spiral
@@ -507,34 +523,6 @@ class Dartfish(Enemy):
         direction = turn_direction(self.pos, self.vel, self.target_vec)
         self.spiral_turn(direction)
         self.change_trajectory(direction)
-
-    def update(self):
-
-        self.idle_swim(Dartfish.territory_rad)
-        if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
-            self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        adjust_target = self.switch_target(0.5, 2)  # # add a % error to the target which switches between +/- error every second
-        self.limit_target_vec()  # limit target_vec to within map boundaries
-        self.get_target_vector(adjust_target)  # find new target vector
-        self.avoid_walls(self.avoidRectH, 0)
-        self.avoid_walls(self.avoidRectV, 1)
-        self.chase_target()
-        self.death()
-
-        self.pos += self.vel
-
-        # Check platform collision
-        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
-        self.collide_platforms(self.hitrect, 1)  # check vertical collision
-        self.atMapBoundaries()
-
-        self.avoidRectH.midleft = self.hitrect.center
-        self.avoidRectH.width = Enemy.avoidRect_length * sign(self.vel.x)
-        self.avoidRectH.normalize()  # avoid negative values for width, height- illegal for rect.collide
-
-        self.avoidRectV.midtop = self.hitrect.center
-        self.avoidRectV.height = Enemy.avoidRect_length * sign(self.vel.y)
-        self.avoidRectV.normalize()
 
 
 class Spinefish(Dartfish):
