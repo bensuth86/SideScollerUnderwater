@@ -215,8 +215,10 @@ class Player(Mobile_sprite):
         for hit in hits:
             self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
 
-            # hit.vel = 0.9 * hit.vel.length() * hit.vel.normalize()  # reduce speed by 90 %
-            # self.vel = 0.1 * self.vel.length() * self.vel.normalize()  # reduce speed by 10 %
+            # TODO mob locks onto player and move at combined velocity
+            combined_vel = hit.vel + self.vel  # inactive feature
+            mobvel = 0.01 * combined_vel  # replace mobvel with hit.vel
+            playervel = 0.01 * combined_vel  # replace playervel with self.vel
 
     def collide_pick_up(self, pick_ups):
 
@@ -233,11 +235,16 @@ class Player(Mobile_sprite):
     def update(self):
 
         # check sprite collisions
-        self.collide_enemy()
+        # self.collide_enemy()
         # self.collide_pick_up(self.game.pick_ups)
 
-        self.vel = vec(0, 0)
+        # self.vel = vec(0, 0)
         self.newaction = "player_idle"
+
+        # check sprite collisions
+
+        self.collide_enemy()
+        # self.collide_pick_up(self.game.pick_ups)
 
         # Player movement
         self.get_direction()
