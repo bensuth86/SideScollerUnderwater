@@ -133,13 +133,13 @@ class Game:
         self.effects_images['enemyDeath4x4'] = resize_images(self.effects_images.get('enemyDeath'), (4 * TILESIZE, 4 * TILESIZE))
 
         # harpoon image rotated through 45 deg increments and stored to dictionary
-        self.weapons_images['harpoonNorthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 45)
-        self.weapons_images['harpoonNorth'] = rotate_images(self.weapons_images.get('harpoonEast'), 90)
-        self.weapons_images['harpoonNorthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 135)
-        self.weapons_images['harpoonWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 180)
-        self.weapons_images['harpoonSouthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 225)
-        self.weapons_images['harpoonSouth'] = rotate_images(self.weapons_images.get('harpoonEast'), 270)
-        self.weapons_images['harpoonSouthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 315)
+        # self.weapons_images['harpoonNorthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 45)
+        # self.weapons_images['harpoonNorth'] = rotate_images(self.weapons_images.get('harpoonEast'), 90)
+        # self.weapons_images['harpoonNorthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 135)
+        # self.weapons_images['harpoonWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 180)
+        # self.weapons_images['harpoonSouthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 225)
+        # self.weapons_images['harpoonSouth'] = rotate_images(self.weapons_images.get('harpoonEast'), 270)
+        # self.weapons_images['harpoonSouthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 315)
 
         self.map = Map(path.join(repos, 'map.txt'))  # create map object from Map class, tilemap.py
         self.grid_squares = []  # game map divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
@@ -245,7 +245,7 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
         # generate sprites
-        self.player = Player(self, 12, 15, 'player', self.player_images['player_idle']['North'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+        self.player = Player(self, 12, 15, 'player', self.player_images['player_idle'][0])  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
         self.active_sprites.add(self.player)
         self.all_sprites.add(self.player)
         self.read_map_data()
@@ -265,18 +265,28 @@ class Game:
 
         for event in pygame.event.get():
             # check for closing pygame window
+            pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
             if event.type == pygame.QUIT:
                 if self.playing:  # if in game
                     self.playing = False  # exit game
                 self.running = False  # close pygame application
 
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                self.player.shoot()
+
             if event.type == pygame.KEYDOWN:
                 # player actions (movement controls determined by key.get_pressed in Player class)
                 if event.key == pygame.K_LCTRL:
                     self.player.shoot()
-
                 if event.key == pygame.K_q:
-                    self.playing = False  # exit game
+                    # exit game
+                    pygame.event.set_grab(False)  # lock keyboard and mouse input into pygame app
+                    self.playing = False
+                if event.key == pygame.K_ESCAPE:
+                    # close pygame
+                    self.playing = False
+                    self.running = False
+
 
     def update(self):
         """Game Loop - Update"""
@@ -349,10 +359,11 @@ class Game:
         # player data
         pos = str(self.player.pos)
         # self.draw_text(pos, 22, RED, 100, 15)
-        # self.draw_text(self.player.direction, 22, RED, SCREENWIDTH - 50, 15)
         velocity = str(self.player.vel)
         # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
         pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)
+        pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
+        pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
 
         # mob data
         for mob in self.mob_sprites:

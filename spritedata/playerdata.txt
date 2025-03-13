@@ -1,4 +1,6 @@
 spritecat|width|height
-player|1|2
+player_fast|2|1
+player_hurt|1|2
 player_idle|1|2
-player_swim|1|2
+player_rush|2|1
+player_swimming|2|1

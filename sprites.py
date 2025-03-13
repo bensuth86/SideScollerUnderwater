@@ -1,6 +1,5 @@
 import pygame
-from math import fabs, floor
-from math import sqrt, e, log
+from math import e, log
 from random import choice, randrange
 from settings import *
 from helpers.spritesheet_functions import *
@@ -19,7 +18,6 @@ class Static_sprite(pygame.sprite.Sprite):
         self.pos = vec(col, row) * TILESIZE  # position in pixels
         self.refkey = refkey  # the sprite dictionary key name
         self.image = image
-        # self.rect = pygame.Rect(0, 0, width, height)
         self.rect = image.get_rect()
         self.rect.topleft = self.pos
 
@@ -53,14 +51,13 @@ class Mobile_sprite(Static_sprite):
     def __init__(self, game, col, row, refkey, image):
 
         super().__init__(game, col, row, refkey, image)
-        self.rect.center = self.pos
-        self.hitrect = self.rect
         self.start_pos = vec(col, row) * TILESIZE  # for keeping mob within rad of starting position
         self.refkey = refkey  # the sprite dictionary key name
-
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
-        self.angle = 0  # angle subtended from vector (1, 0) i.e. anticlockwise from the x-axis
+        self.rect.center = self.pos
+        self.hitrect = self.rect
+        self.rect_rtn = 0  # rotate sprite rect and image
         self.current_grids = self.get_grids(self.hitrect)  # grids which sprite overlaps
         self.actionvar = "idle"  # current sprite action
         self.newaction = "idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
@@ -101,7 +98,7 @@ class Mobile_sprite(Static_sprite):
         return rect.colliderect(platform.rect)
 
     def collide_platforms(self, hitrect, axis):  # [0, 1] for either [x, y] axis
-
+        # TODO  player, mobs rebound off walls
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect with new position
         self.rect.center = self.hitrect.center
         self.current_grids = self.get_grids(self.hitrect)  # must be before spritecollide
@@ -144,10 +141,10 @@ class Mobile_sprite(Static_sprite):
     def transform_image(self):
         """Flip image about y axis if sprite is upside down, then rotate image about rect.center"""
 
-        if self.angle < -90 or self.angle > 90:
+        if self.rect_rtn < - 90 or self.rect_rtn > 90:
             self.ref_image = pygame.transform.flip(self.ref_image, False, True)  # flip image
 
-        self.image, self.rect = self.rotate_about_centre(self.angle)
+        self.image, self.rect = self.rotate_about_centre(self.rect_rtn)
 
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
@@ -175,36 +172,84 @@ class Mobile_sprite(Static_sprite):
 class Player(Mobile_sprite):
 
     runspeed = 8
+    rot_speed = 3  # degrees per second
     health = 100
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
 
         # self.image.fill(RED)
-        self.direction = 'North'
-        self.directionKeys = [0, 0, 0, 0]  # see get_direction()
+        self.runspeed = 0
         self.vel = vec(0, 0)
-
+        self.direction = vec(0, -1)
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
-        self.refresh_rate = 0.25  # rate animation changes slide (0.5 - changes twice per second)
+        self.refresh_rate = 0.15  # rate animation changes slide (0.5 - changes twice per second)
 
         self.health = Player.health
 
-    def get_direction(self):
-        """compare directionKeys to ORIENTATIONS and return accordingly"""
+    def axial_movement(self):
+        """Movement in 8 directions controlled with keys only"""
         keys = pygame.key.get_pressed()
-        self.directionKeys = [keys[pygame.K_RIGHT], keys[pygame.K_LEFT], keys[pygame.K_DOWN], keys[pygame.K_UP]]  # e.g. [1, 0, 0, 1] will return NorthEast from ORIENTATIONS
-        for key, value in ORIENTATIONS.items():
-            if self.directionKeys == value:
-                self.direction = key
+        unit_vel = vec(0, 0)
+        verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
+        horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
+
+        self.newaction = "player_idle"
+        if sum(verticalKeys) == 1:
+            # unit_vel += verticalKeys[0] * vec(0, -1/2)   # up
+            unit_vel += verticalKeys[0] * vec(0, 1)  # up
+            unit_vel += verticalKeys[1] * vec(0, -1)  # down
+            self.newaction = "player_swimming"
+
+        if sum(horizontalKeys) == 1:
+            unit_vel += horizontalKeys[0] * vec(1, 0)  # left
+            unit_vel += horizontalKeys[1] * vec(-1, 0)  # right
+            self.newaction = "player_swimming"
+
+        self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
+        self.rect_rtn = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+
+    def rotational_movement(self):
+
+        keys = pygame.key.get_pressed()
+        unit_vel = vec(0, 0)
+        self.newaction = "player_swimming"
+        if keys[pygame.K_w]:
+            unit_vel = vec(0, 1)
+            self.newaction = "player_rush"
+        elif keys[pygame.K_s]:
+            unit_vel = vec(0, -1/2)
+            self.newaction = "player_swimming"
+        if keys[pygame.K_a]:
+            unit_vel = vec(3/4, 0)
+            self.newaction = "player_swimming"
+        elif keys[pygame.K_d]:
+            unit_vel = vec(-3/4, 0)
+            self.newaction = "player_swimming"
+
+        scrollH = self.get_mouse(2)
+        self.direction = self.direction.rotate(scrollH)
+        angle = self.direction.angle_to(vec(0, 1))
+
+        self.vel = (unit_vel*Player.runspeed).rotate(-angle)
+        self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of direction
+
+    def get_mouse(self, sensitivity):  #
+        """ Set sensitivity range to be betweeen 0.1 - 2 for current setup"""
+        pygame.mouse.set_visible(False)
+        movement = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
+
+        scrollH = 1/10 * movement[0] * sensitivity  # set x axis movement sensitivity
+        scrollH = max(min(15, scrollH), -15)  # set to be between 10-20
+        return scrollH  # return hoizontal movement
 
     def shoot(self):
 
-        harpoonimg = 'harpoon' + self.direction  # image keyref according to direction being fired e.g. 'harpoonWest'
-        missile_img = self.game.weapons_images[harpoonimg][0]
-        missile = Missile(self.game, 0, 0, harpoonimg, missile_img)
+        missile_img = self.game.weapons_images['harpoonEast'][0]
+        rotated_img = pygame.transform.rotate(missile_img, self.rect_rtn)
+        missile = Missile(self.game, 0, 0, 'harpoonEast', rotated_img)
         self.game.active_sprites.add(missile)
         self.game.all_sprites.add(missile)
 
@@ -234,36 +279,28 @@ class Player(Mobile_sprite):
 
     def update(self):
 
-        # check sprite collisions
-        # self.collide_enemy()
-        # self.collide_pick_up(self.game.pick_ups)
-
-        # self.vel = vec(0, 0)
-        self.newaction = "player_idle"
+        self.rot_speed = 0
+        self.vel = vec(0, 0)
 
         # check sprite collisions
-
         self.collide_enemy()
         # self.collide_pick_up(self.game.pick_ups)
 
         # Player movement
-        self.get_direction()
-        if self.get_unit_vel(self.directionKeys):
-            self.newaction = "player_swim"
-            self.vel *= Player.runspeed
+        # self.axial_movement()
+        self.rotational_movement()
 
-        self.death()
         self.pos += self.vel
+        self.death()
 
         # Check platform collision
-
         self.atMapBoundaries()
         self.collide_platforms(self.hitrect, 0)  # check horizontal collision
         self.collide_platforms(self.hitrect, 1)  # check vertical collision
 
         # update player animation reel
         self.change_action(self.newaction)  # change self.actionvar to new action
-        self.current_animation = self.game.player_images[self.actionvar][self.direction]
+        self.current_animation = self.game.player_images[self.actionvar]
 
 
 class Missile(Mobile_sprite):
@@ -274,10 +311,8 @@ class Missile(Mobile_sprite):
         super().__init__(game,  col, row, refkey, image)
         self.current_animation = self.game.weapons_images[refkey]
         self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
-        self.vel = vec(0, 0)
-        self.direction = game.player.direction
-        self.get_unit_vel(ORIENTATIONS[self.direction])
-        self.vel *= Missile.runspeed
+        self.rect_rtn = game.player.rect_rtn
+        self.vel = game.player.direction.normalize() * Missile.runspeed
         self.vel.x += randrange(-2, 2, 1)  # vary the direction marginally
         self.vel.y += randrange(-2, 2, 1)
 
@@ -409,7 +444,8 @@ class Enemy(Mobile_sprite):
     def death(self):
 
         if self.hitpoints <= 0:
-            self.angle = 0
+            self.rect_rtn = 0
+            self.vel = self.vel / 2
             self.remove(self.game.mob_sprites)
             self.remove(self.game.active_sprites)
             self.add(self.game.hold_sprites)
@@ -419,7 +455,7 @@ class Enemy(Mobile_sprite):
             self.current_animation = self.deathanimation
             self.change_action(self.newaction)  # change self.actionvar to new action
 
-    def update(self, *args):
+    def update(self):
 
         self.idle_swim(self.__class__.territory_rad)
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
@@ -465,7 +501,7 @@ class Daddyfish(Enemy):
     def chase_target(self):
         """Get acceleration vector directed to target and return new velocity.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
-        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite so facing target
+        self.rect_rtn = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite so facing target
 
         accn = 0.1  # acceleration magnitude
         drag_coeff = accn / Daddyfish.maxspeed  # friction/ drag coefficient
@@ -476,7 +512,7 @@ class Daddyfish(Enemy):
 
 
 class Dartfish(Enemy):
-
+    # TODO Dartfish and child classes 'stunned' feature after hitting wall
     vel = vec(6, 0)  # initial velocity
     max_speed = 16
     territory_rad = 8 * TILESIZE
@@ -524,9 +560,9 @@ class Dartfish(Enemy):
 
         self.geo_pro = Dartfish.geo_pro ** c
 
-    def chase_target(self,):
+    def chase_target(self):
 
-        self.angle = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+        self.rect_rtn = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
         direction = turn_direction(self.pos, self.vel, self.target_vec)
         self.spiral_turn(direction)
         self.change_trajectory(direction)
