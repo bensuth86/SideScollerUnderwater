@@ -132,15 +132,6 @@ class Game:
         self.effects_images['enemyDeath2x1'] = resize_images(self.effects_images.get('enemyDeath'), (2*TILESIZE, 1*TILESIZE))
         self.effects_images['enemyDeath4x4'] = resize_images(self.effects_images.get('enemyDeath'), (4 * TILESIZE, 4 * TILESIZE))
 
-        # harpoon image rotated through 45 deg increments and stored to dictionary
-        # self.weapons_images['harpoonNorthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 45)
-        # self.weapons_images['harpoonNorth'] = rotate_images(self.weapons_images.get('harpoonEast'), 90)
-        # self.weapons_images['harpoonNorthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 135)
-        # self.weapons_images['harpoonWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 180)
-        # self.weapons_images['harpoonSouthWest'] = rotate_images(self.weapons_images.get('harpoonEast'), 225)
-        # self.weapons_images['harpoonSouth'] = rotate_images(self.weapons_images.get('harpoonEast'), 270)
-        # self.weapons_images['harpoonSouthEast'] = rotate_images(self.weapons_images.get('harpoonEast'), 315)
-
         self.map = Map(path.join(repos, 'map.txt'))  # create map object from Map class, tilemap.py
         self.grid_squares = []  # game map divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
         self.grid_setup()
@@ -265,7 +256,7 @@ class Game:
 
         for event in pygame.event.get():
             # check for closing pygame window
-            pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
+            # pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
             if event.type == pygame.QUIT:
                 if self.playing:  # if in game
                     self.playing = False  # exit game
@@ -286,7 +277,6 @@ class Game:
                     # close pygame
                     self.playing = False
                     self.running = False
-
 
     def update(self):
         """Game Loop - Update"""
@@ -361,18 +351,16 @@ class Game:
         # self.draw_text(pos, 22, RED, 100, 15)
         velocity = str(self.player.vel)
         # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
-        pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)
-        pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
-        pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
+        # pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)
+        # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
+        # pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
 
         # mob data
         for mob in self.mob_sprites:
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
-            # pygame.draw.rect(self.screen, WHITE, mob.avoidRectH, 2)
-            # pygame.draw.rect(self.screen, WHITE, mob.avoidRectV, 2)
-            target = vec(0, 0)
-            target.x = mob.pos.x - mob.target_vec.x
-            target.y = mob.pos.y - mob.target_vec.y
+            # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
+
+            # pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)  # draw target position
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
             # pygame.draw.circle(self.screen, RED, (int(mob.rect.centerx), int(mob.rect.centery)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
@@ -383,6 +371,8 @@ class Game:
 
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector
+            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.displacement.x, mob.pos.y + mob.displacement.y), 3)  # displacement vector
+            # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.anti_g.x, mob.pos.y + mob.anti_g.y), 3)  # accn away from wall tiles
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x * 10, mob.pos.y + mob.vel.y *  10), 3)  # velocity vector
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
             # pygame.draw.line(self.screen, YELLOW, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 6)  # target rad from player to origin

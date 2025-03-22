@@ -10,13 +10,10 @@ def sign(x):
     return sign
 
 
-def turn_direction(pos, vel, target):
+def turn_direction(vector1, vector2):
     """ From current velocity and target vectors, choose turning direction- anticlockwise: return -1, clockwise: return 1
         Direction used in vec_trans function to determine rotation matrix and therefore velocity direction"""
-    det = sign(vel.cross(target))  # sign of velocity and target vector cross product
-    dot = sign(vel.dot(target))  # sign of velocity and target vector dot product
-    y_direction = sign(pos.y - target.y)
-    direction = sign((1+dot)*det + (1 - dot)*y_direction)  # takes longer turn direction along y axis i.e. if clockwise is shorter path to player will turn anticlockwise
+    det = sign(vector1.cross(vector2))  # sign of vector1 and vector2 cross product
     direction = det
 
     return direction

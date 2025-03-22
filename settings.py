@@ -43,15 +43,3 @@ PLAYER = readSpriteData(path.join(repos, 'spritedata', 'playerdata.txt'))
 MOBS = readSpriteData(path.join(repos, 'spritedata', 'mobsdata.txt'))
 EFFECTS = readSpriteData(path.join(repos, 'spritedata', 'effectsdata.txt'))
 WEAPONS = readSpriteData(path.join(repos, 'spritedata', 'weaponsdata.txt'))
-
-# sprite orientations  [K_RIGHT, K_LEFT , K_DOWN, K_UP]
-ORIENTATIONS = {
-                    'East': [1, 0, 0, 0],
-                    'West': [0, 1, 0, 0],
-                    'South': [0, 0, 1, 0],
-                    'North': [0, 0, 0, 1],
-                    'NorthEast': [1, 0, 0, 1],
-                    'SouthEast': [1, 0, 1, 0],
-                    'NorthWest': [0, 1, 0, 1],
-                    'SouthWest': [0, 1, 1, 0]
-                }
