@@ -13,10 +13,13 @@ repos = r"C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwate
 
 # game options/settings
 TITLE = "Animate player"
+
+# all screen dimensions, grids tiles multiples of 4
 TILESIZE = 36  # length, width in pixels
-GRIDWIDTH, GRIDHEIGHT = 4*TILESIZE, 4*TILESIZE  # map divided into grids 4 X 4 TILES
-SCREENWIDTH = 40 * TILESIZE  # screen width in tiles (must be divisible by 4)
-SCREENHEIGHT = 20 * TILESIZE  # screen height in tiles (must be divisible by 4)
+SCREENWIDTH = 40 * TILESIZE  # screen width in tiles (must be divisible by 2)
+SCREENHEIGHT = 20 * TILESIZE  # screen height in tiles
+GRIDWIDTH, GRIDHEIGHT = 10*TILESIZE, 10*TILESIZE  # map divided into grids 4 X 4 TILES
+
 FPS = 60
 
 # Background

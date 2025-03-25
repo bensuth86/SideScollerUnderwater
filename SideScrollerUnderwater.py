@@ -30,17 +30,17 @@ def draw_player_health(surf, x, y, pct):
 
 
 class Camera:
-
+    # TODO Fix camera 'stutter'
+    # TODO Parallax scrolling; objects, map layers move at different rates rel to camera scrolling speed
     def __init__(self, game):
 
         self.rect = pygame.Rect(0, 0, SCREENWIDTH, SCREENHEIGHT)
         self.game = game
 
     def update(self, target):
-        # update camera offset according to player's new position
-        x_offset = -target.rect.centerx + int(SCREENWIDTH / 2)  # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
-        y_offset = -target.rect.centery + int(SCREENHEIGHT / 2)  # player moves up, map moves down ""            ""
-
+        # update camera offset according to player's new position i.e. camera follows player
+        x_offset = -target.rect.centerx + (SCREENWIDTH / 2)  # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
+        y_offset = -target.rect.centery + (SCREENHEIGHT / 2)  # player moves up, map moves down ""            ""
         # limit scrolling to map size
         x_offset = min(0, x_offset)  # left map edge
         y_offset = min(0, y_offset)  # top map edge
@@ -48,8 +48,12 @@ class Camera:
         y_offset = max(-(self.game.map.height - SCREENHEIGHT), y_offset)  # bottom map edge
 
         # # reposition camera rect  (remove/ comment out to 'switch off' camera)
-        self.rect.x = x_offset
-        self.rect.y = y_offset
+        self.rect.x = int(x_offset)
+        self.rect.y = int(y_offset)
+
+    def parallax_scrolling(self):
+        """ Entity.rect moves by a fraction of camera offset e.g. 1/2 self.rect.x, 1/2 self.rect.y"""
+        pass
 
     def apply(self, entity):
         # move on screen objects according to camera offset e.g. player moves right, map objects shift left
@@ -91,7 +95,7 @@ class Game:
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        'daddyfish': Daddyfish
+        # 'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -160,7 +164,7 @@ class Game:
                 grid_row.append(grid)
             self.grid_squares.append(grid_row)  # each row nested list within main list
 
-    def assign_sprite_to_grid(self, sprite):
+    def assign_walltile_to_grid(self, sprite):
         """ static sprites; platforms, pickups etc assigned on game init.  Mobile sprites reassigned as they travel across the map"""
 
         (x_coord, y_coord) = sprite.rect.center
@@ -170,7 +174,7 @@ class Game:
 
     def read_map_data(self):
         """load map data from map.txt file: create platform, player, enemy sprites accordingly"""
-
+        # TODO individual map layers for platforms, mobs, items etc, each divided into grid square spritegroups
         for row, tiles in enumerate(self.map.data):
             for col, tile in enumerate(tiles):
 
@@ -183,13 +187,14 @@ class Game:
 
                     if row in range(1, len(self.map.data)-1) and col in range(1, len(self.map.data[0])-1):  # exclude map boundary sprites
                         if platform_type != 'tunnelLeft' and platform_type != 'tunnelRight':  # exclude tunnel entrance
-                            self.assign_sprite_to_grid(ptf)
+                            self.assign_walltile_to_grid(ptf)
 
                     if platform_type == 'floor':
                         self.spawnpoints.append((col, row))  # create spawnpoints adjacent to platform
 
                 # load enemy sprites
                 if tile == 'E':
+
                     mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
 
                     img = self.mob_images[mobkey][0]
@@ -247,6 +252,7 @@ class Game:
         self.playing = True
         while self.playing:
             self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
+            self.dt = max(0.001, (min(0.1, self.dt)))
             self.elapsed_time += self.dt
             self.events()
             self.update()
@@ -281,6 +287,10 @@ class Game:
     def update(self):
         """Game Loop - Update"""
         self.active_sprites.update()
+
+        # update sprite positions after main update called
+        for sprite in self.active_sprites:
+            sprite.pos += sprite.vel
 
         for sprite in self.hold_sprites:
             sprite.pos += sprite.vel
@@ -336,7 +346,7 @@ class Game:
 
         # TESTING ONLY #
 
-        # self.draw_grid()
+        self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
@@ -360,6 +370,7 @@ class Game:
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
 
+            pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
             # pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)  # draw target position
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
             # pygame.draw.circle(self.screen, RED, (int(mob.rect.centerx), int(mob.rect.centery)), 10, 1)

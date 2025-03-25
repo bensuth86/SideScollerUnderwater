@@ -21,7 +21,7 @@ class Static_sprite(pygame.sprite.Sprite):
         self.refkey = refkey  # the sprite dictionary key name
         self.image = image
         self.rect = image.get_rect()
-        self.rect.topleft = self.pos
+        self.rect.topleft = (self.pos.x, self.pos.y)
 
         self.refresh_rate = 1  # rate animation changes slide (0.5 - changes twice per second)
 
@@ -61,6 +61,7 @@ class Mobile_sprite(Static_sprite):
         self.image = self.ref_image
         self.rect.center = self.pos
         self.hitrect = self.rect
+        self.radius = 0.75 * ((self.rect.width+self.rect.height)/4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
         self.rect_rtn = 0  # rotate sprite rect and image
         self.current_grids = self.get_grids(self.hitrect)  # grids which sprite overlaps
         self.actionvar = "idle"  # current sprite action
@@ -106,7 +107,7 @@ class Mobile_sprite(Static_sprite):
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect with new position
         self.rect.center = self.hitrect.center
         self.current_grids = self.get_grids(self.hitrect)  # must be before spritecollide
-        totalhits = []  # if colling with sprites in multiple grids when between grid boundaries
+        totalhits = []  # if colling with wall tiles in multiple grids when between grid boundaries
         for grid in self.current_grids:
             hits = pygame.sprite.spritecollide(hitrect, grid, False, self.collide_rect)
             totalhits += hits
@@ -186,7 +187,7 @@ class Player(Mobile_sprite):
         # self.image.fill(RED)
         self.runspeed = 0
         self.vel = vec(0, 0)
-        self.direction = vec(0, -1)
+        self.direction = vec(1, 0)
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
@@ -195,7 +196,7 @@ class Player(Mobile_sprite):
         self.health = Player.health
 
     def axial_movement(self):
-        # TODO Fix shoot fnctality for player axial movement
+
         """Movement in 8 directions controlled with keys only"""
         keys = pygame.key.get_pressed()
         unit_vel = vec(0, 0)
@@ -214,7 +215,8 @@ class Player(Mobile_sprite):
             self.newaction = "player_swimming"
 
         self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
-        self.rect_rtn = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
+        self.direction = vec(unit_vel.x, unit_vel.y) if unit_vel else self.direction
+        self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
     def rotational_movement(self):
 
@@ -238,8 +240,8 @@ class Player(Mobile_sprite):
         self.direction = self.direction.rotate(scrollH)
         angle = self.direction.angle_to(vec(0, 1))
 
-        self.vel = (unit_vel*Player.runspeed).rotate(-angle)
-        self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of direction
+        self.vel = (unit_vel*Player.runspeed).rotate(-angle) if unit_vel else vec(0, 0)
+        self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # rotate sprite
 
     def get_mouse(self, sensitivity):  #
         """ Set sensitivity range to be betweeen 0.1 - 2 for current setup"""
@@ -248,7 +250,7 @@ class Player(Mobile_sprite):
 
         scrollH = 1/10 * movement[0] * sensitivity  # set x axis movement sensitivity
         scrollH = max(min(15, scrollH), -15)  # set to be between 10-20
-        return scrollH  # return hoizontal movement
+        return scrollH  # return horizontal mouse movement
 
     def shoot(self):
 
@@ -260,15 +262,10 @@ class Player(Mobile_sprite):
 
     def collide_enemy(self):
 
-        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
+        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_circle)
 
         for hit in hits:
             self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
-
-            # TODO mob locks onto player and move at combined velocity
-            combined_vel = hit.vel + self.vel  # inactive feature
-            mobvel = 0.01 * combined_vel  # replace mobvel with hit.vel
-            playervel = 0.01 * combined_vel  # replace playervel with self.vel
 
     def collide_pick_up(self, pick_ups):
 
@@ -283,25 +280,26 @@ class Player(Mobile_sprite):
             print("Dead")
 
     def update(self):
-
+        # reset parameters
         self.rot_speed = 0
-        self.vel = vec(0, 0)
+        # self.vel = vec(0, 0)
+
+        # Check platform collision and update rect
+
+        self.atMapBoundaries()
+        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
+        self.collide_platforms(self.hitrect, 1)  # check vertical collision
 
         # check sprite collisions
-        self.collide_enemy()
         # self.collide_pick_up(self.game.pick_ups)
+        self.collide_enemy()
+
+        self.death()
 
         # Player movement
         self.axial_movement()
         # self.rotational_movement()
-
-        self.pos += self.vel
-        self.death()
-
-        # Check platform collision
-        self.atMapBoundaries()
-        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
-        self.collide_platforms(self.hitrect, 1)  # check vertical collision
+        # self.pos += self.vel
 
         # update player animation reel
         self.change_action(self.newaction)  # change self.actionvar to new action
@@ -345,7 +343,7 @@ class Missile(Mobile_sprite):
 
         self.collide_enemy()
 
-        self.pos += self.vel
+        # self.pos += self.vel
         self.rect.center = self.pos
 
 
@@ -361,7 +359,7 @@ class Bubbles(Mobile_sprite):
 
     def update(self):
 
-        self.pos += self.vel
+        # self.pos += self.vel
         self.rect.bottomleft = self.pos
 
         if self.check_anim_end(self.current_animation):
@@ -389,6 +387,8 @@ class Enemy(Mobile_sprite):
         self.displacement = vec(0, 0)
 
         self.hitpoints = 10
+        # self.hit_player = False
+
         self.deathanimation = self.game.effects_images['enemyDeath']
         self.current_animation = self.game.mob_images[self.refkey]
         self.refresh_rate = 0.2
@@ -450,6 +450,25 @@ class Enemy(Mobile_sprite):
             self.target.x = randrange(self.start_pos.x - territory_rad, self.start_pos.x + territory_rad)
             self.target.y = randrange(self.start_pos.y - 0.2 * territory_rad, self.start_pos.y + 0.2 * territory_rad)
 
+    def collide_player(self):
+        """ Currently shelved"""
+        # TODO fix collide_player() to replace collide_emeny(): mob locks onto player and move at combined velocity
+        if pygame.sprite.collide_circle(self, self.game.player):
+            self.game.player.health -= interval_trigger(self.timer, 0.2, self.game.dt) * self.mob_damage  # health deducted every 0.2 seconds
+            if not self.hit_player:  # initial collision with player
+                combined_vel = (self.vel - self.game.player.vel) * self.__class__.momentum
+                self.vel = combined_vel
+                # self.game.player.pos += self.vel  # update player position (in affect player vel == mob vel
+                self.game.player.vel = combined_vel
+                self.hit_player = True
+
+            elif self.hit_player:  # already collided with player
+                self.game.player.vel = self.vel
+
+        else:
+            self.hit_player = False
+
+
     def death(self):
 
         if self.hitpoints <= 0:
@@ -473,8 +492,9 @@ class Enemy(Mobile_sprite):
         self.get_target_vector(adjust_target)  # find new target vector
         self.chase_target()
         self.avoid_walls()
+        # self.collide_player()
         self.death()
-        self.pos += self.vel
+        # self.pos += self.vel
 
         self.atMapBoundaries()
         self.collide_platforms(self.hitrect, 0)  # check horizontal collision
@@ -487,6 +507,7 @@ class Daddyfish(Enemy):
 
     territory_rad = 20 * TILESIZE
     maxspeed = 6
+    # momentum = 0.9  # % velocity transferred to player during collision
     error_margin = 0.5  # percentage error for tracking target vec
     switch_freq = 2  # switch to new target every n seconds
 
@@ -519,6 +540,7 @@ class Dartfish(Enemy):
 
     vel = vec(6, 0)  # initial velocity
     max_speed = 16
+    # momentum = 0.1  # % velocity transferred to player during collision
     territory_rad = 15 * TILESIZE
     error_margin = 0.5  # percentage error for tracking target vec
     switch_freq = 2  # switch to new target every n seconds
