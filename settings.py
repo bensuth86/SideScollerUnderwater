@@ -18,7 +18,7 @@ TITLE = "Animate player"
 TILESIZE = 36  # length, width in pixels
 SCREENWIDTH = 40 * TILESIZE  # screen width in tiles (must be divisible by 2)
 SCREENHEIGHT = 20 * TILESIZE  # screen height in tiles
-GRIDWIDTH, GRIDHEIGHT = 10*TILESIZE, 10*TILESIZE  # map divided into grids 4 X 4 TILES
+GRIDWIDTH, GRIDHEIGHT = 5*TILESIZE, 5*TILESIZE  # map divided into grids 4 X 4 TILES
 
 FPS = 60
 
@@ -34,8 +34,8 @@ PLATFORMKEY = {'8': 'roof',
                '9': 'topLeftCorner',
                '1': 'bottomLeftCorner',
                '3': 'bottomRightCorner',
-               '0': 'tunnelRight',
-               '5': 'tunnelLeft'
+               '5': 'tunnelLeft',
+               '0': 'tunnelRight'
                }
 
 # read sprite data from text files and store to dictionary

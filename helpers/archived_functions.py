@@ -18,6 +18,26 @@ def get_gridsi(self, rect):
 
     return grids
 
+def lookup_grids(self):
+    """Returns list of grid references sprite rect overlaps (assignment to main grid_squares dictionary handled seperately"""
+    # return index position of grids overlapping rect
+    grid_cols = list(range((self.rect.topleft[0])//GRIDWIDTH, (((self.rect.topright[0])//GRIDWIDTH) + 1)))
+    grid_rows = list(range((self.rect.topleft[1])//GRIDHEIGHT, ((self.rect.bottomleft[1])//GRIDHEIGHT) + 1))
+    grids = []
+
+    # find corresponding grid reference and append to list
+    for i in grid_cols:
+        i = max(min(len(self.game.x_coords)-1, i), 0)  # limit to total columns in map.width
+        col = self.game.x_coords[i]  # 'A'
+        for j in grid_rows:
+            j = max(min(len(self.game.y_coords) - 1, j), 0)  # limit to total rows in map.height
+            row = self.game.y_coords[j]  # '1'
+            grid_ref = col + row    # 'A1'
+            grids.append(grid_ref)
+
+    # print([[grid_ref] for grid_ref in grids])
+    return grids
+
 
 def increment_angle(self, target_angle):
     """Not using this function"""

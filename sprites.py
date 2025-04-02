@@ -12,7 +12,7 @@ vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
 
 class Static_sprite(pygame.sprite.Sprite):
-    """PLatform, item, prop sprites. Single image sprites not animated """
+    """Background sprites for visual purposes only (no interaction, collisions. Single image sprites not animated """
     def __init__(self, game, col, row, refkey, image):
 
         pygame.sprite.Sprite.__init__(self)
@@ -31,39 +31,43 @@ class Static_sprite(pygame.sprite.Sprite):
 
 
 class Platform(Static_sprite):
-
+    """Wall sprite; player, mobs can't pass through"""
     antiGrav = 0.5  # constant of acceleration which repels mob sprites away from walls
 
-    def __init__(self, start_x, start_y, image):
+    def __init__(self, game, col, row, refkey, image):
         """Generates a single platform tile."""
-        super().__init__(start_x, start_y, image)
+        super().__init__(game, col, row, refkey, image)
+        gridref = game.x_coords[int(self.pos.x//GRIDWIDTH)] + game.y_coords[int(self.pos.y//GRIDHEIGHT)]
+        self.game.walls[gridref].add(self)
 
 
 class Pick_up(Static_sprite):
 
-    def __init__(self, start_x, start_y, image):
+    def __init__(self, game, start_x, start_y, image):
         """Generates a single pick_up tile."""
-        super().__init__(start_x, start_y, image)
+        super().__init__(game, start_x, start_y, image)
 
     def apply_pickup(self, player):
         player.game.score += 50
 
 
 class Mobile_sprite(Static_sprite):
-    """Mobile sprites animated and/ or have velocity"""
+    """Mobile sprites animated and/ or have velocity.  Self.pos is placed at rect.center rather than topleft for rotating sprites"""
 
     def __init__(self, game, col, row, refkey, image):
 
         super().__init__(game, col, row, refkey, image)
         self.start_pos = vec(col, row) * TILESIZE  # for keeping mob within rad of starting position
+        self.rect.center = self.pos
+        self.setup_hitrect()
+
         self.refkey = refkey  # the sprite dictionary key name
         self.ref_image = image  # for mob image transformation (flip/ rotate)
         self.image = self.ref_image
-        self.rect.center = self.pos
-        self.hitrect = self.rect
+        self.get_gridref()  # current grid position
         self.radius = 0.75 * ((self.rect.width+self.rect.height)/4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
         self.rect_rtn = 0  # rotate sprite rect and image
-        self.current_grids = self.get_grids(self.hitrect)  # grids which sprite overlaps
+
         self.actionvar = "idle"  # current sprite action
         self.newaction = "idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
 
@@ -71,47 +75,57 @@ class Mobile_sprite(Static_sprite):
         self.timer = 0  # used to trigger next frame for animations (can set to -ve value to delay start of an animation)
         self.current_frame_index = 0  # used to check if at end of animation reel i.e. at next game loop animation will start over
 
-    def get_unit_vel(self, directionKeys):
-        """ return unit vector for velocity"""
-        self.vel += directionKeys[0] * vec(1, 0)   # up
-        self.vel += directionKeys[1] * vec(-1, 0)  # down
-        self.vel += directionKeys[2] * vec(0, 1)   # left
-        self.vel += directionKeys[3] * vec(0, -1)  # right
+    def setup_hitrect(self):
+        """ hitrect square centred about self.rect.center. Used for platform collisions. """
+        # TODO: hitrect dimensions need to be adjusted for missile sprites, possibly other classes
+        self.hitrect = self.rect
+        HRlength = 1/2 * (self.rect.width + self.rect.height)
+        self.hitrect.width, self.hitrect.height = HRlength, HRlength
 
-        if self.vel != vec(0, 0):
-            self.vel = self.vel.normalize()  # return unit vector with magnitude == 1 ( vec[1, 1] would have magnitude sqrt(2) without this step)
-            return True
+    def get_gridref(self):
 
-    def get_grids(self, rect):
+        grid_col, grid_row = self.rect.center[0] // GRIDWIDTH, self.rect.center[1] // GRIDHEIGHT
+        self.gridref = self.game.x_coords[grid_col] + self.game.y_coords[grid_row]
 
-        # return index position of grids overlapping rect
-        grid_cols = list(range((rect.topleft[0])//GRIDWIDTH, (((rect.topright[0])//GRIDWIDTH) + 1)))
-        grid_rows = list(range((rect.topleft[1])//GRIDHEIGHT, ((rect.bottomleft[1])//GRIDHEIGHT) + 1))
-        grids = []
+    def assign_sprite_to_grid(self, map_layer):
+        """ Remove sprite from previous grids, and reassign sprite to corresponding grids (sprite groups) in game class grid squares dictionary"""
 
-        for row in grid_rows:
-            row = max(min(len(self.game.grid_squares) - 1, row), 0)  # limit col within grid_squares width
-            for col in grid_cols:
-                col = max(min(len(self.game.grid_squares[0]) - 1, col), 0)  # limit row within grid_squares height
-                grid = self.game.grid_squares[row][col]  # lookup grid sprite.Group
-                grids.append(grid)
-        # print([[grid.coordinates] for grid in grids])
-        return grids
+        map_layer[self.gridref].remove(self)  # remove sprite from grid for previous loop
+        self.get_gridref()  # get updated grid coordinates
+        map_layer[self.gridref].add(self)  # add sprite to new grid
+
+    def adjacent_grids(self):
+        """ Return list of current and adjacent grid e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
+
+        adjacent_grids = []
+        grid_col, grid_row = self.rect.center[0] // GRIDWIDTH, self.rect.center[1] // GRIDHEIGHT
+        grids_left = max(grid_col-1, 0)  # return index position for grids to the left
+        grids_right = min(grid_col+1, len(self.game.x_coords)-1)
+        grids_above = max(grid_row-1, 0)
+        grids_below = min(grid_row+1, len(self.game.y_coords)-1)
+        for i in range(grids_left, grids_right+1):
+            for j in range(grids_above, grids_below+1):
+                gridref = self.game.x_coords[i] + self.game.y_coords[j]
+                adjacent_grids.append(gridref)
+
+        return adjacent_grids
 
     def collide_rect(self, rect, platform):
 
         return rect.colliderect(platform.rect)
 
     def collide_platforms(self, hitrect, axis):  # [0, 1] for either [x, y] axis
-
+        # TODO Fix player sprite 'judder' when moving along a platform
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect with new position
         self.rect.center = self.hitrect.center
-        self.current_grids = self.get_grids(self.hitrect)  # must be before spritecollide
+
+        check_grids = self.adjacent_grids()
         totalhits = []  # if colling with wall tiles in multiple grids when between grid boundaries
-        for grid in self.current_grids:
+        for gridref in check_grids:
+            grid = self.game.walls[gridref]  # return sprite group from grid_squares dictionary
             hits = pygame.sprite.spritecollide(hitrect, grid, False, self.collide_rect)
             totalhits += hits
-
+        # totalhits = pygame.sprite.spritecollide(hitrect, self.game.walls[self.gridref], False, self.collide_rect)
         if totalhits:
 
             d = sign(self.vel[axis])  # direction of travel: left = -1, right = 1, up = -1, down = 1
@@ -121,7 +135,6 @@ class Mobile_sprite(Static_sprite):
             self.pos[axis] -= overlap  # reset position so no longer colliding
             self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect post collision
             self.rect.center = self.hitrect.center
-            self.vel[axis] *= -1/2  # bounce off walls
             return True
 
     def atMapBoundaries(self):
@@ -151,6 +164,7 @@ class Mobile_sprite(Static_sprite):
             self.ref_image = pygame.transform.flip(self.ref_image, False, True)  # flip image
 
         self.image, self.rect = self.rotate_about_centre(self.rect_rtn)
+        self.rect.center = self.hitrect.center
 
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
@@ -160,11 +174,11 @@ class Mobile_sprite(Static_sprite):
         self.ref_image = anim_reel[current_frame_index]
         self.image = self.ref_image
         self.transform_image()
-
+        # self.image.fill(RED)
         return current_frame_index
 
     def check_anim_end(self, anim_reel):
-        """ check if animation will return to 1st frame on next game loop"""
+        """ check if animation will end & return to 1st frame on next game loop"""
 
         if int((self.timer // self.refresh_rate) % len(anim_reel)) < self.current_frame_index:
             return True
@@ -185,7 +199,7 @@ class Player(Mobile_sprite):
         super().__init__(game, col, row, refkey, image)
 
         # self.image.fill(RED)
-        self.runspeed = 0
+        self.assign_sprite_to_grid(self.game.players)
         self.vel = vec(0, 0)
         self.direction = vec(1, 0)
         self.actionvar = "player_idle"  # current sprite action
@@ -200,8 +214,8 @@ class Player(Mobile_sprite):
         """Movement in 8 directions controlled with keys only"""
         keys = pygame.key.get_pressed()
         unit_vel = vec(0, 0)
-        verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
-        horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
+        verticalKeys = [keys[pygame.K_DOWN], keys[pygame.K_UP]]
+        horizontalKeys = [keys[pygame.K_RIGHT], keys[pygame.K_LEFT]]
 
         self.newaction = "player_idle"
         if sum(verticalKeys) == 1:
@@ -256,16 +270,18 @@ class Player(Mobile_sprite):
 
         missile_img = self.game.weapons_images['harpoonEast'][0]
         rotated_img = pygame.transform.rotate(missile_img, self.rect_rtn)
-        missile = Missile(self.game, 0, 0, 'harpoonEast', rotated_img)
-        self.game.active_sprites.add(missile)
+        col, row = int(self.pos.x // TILESIZE), int(self.pos.y // TILESIZE)
+        missile = Missile(self.game, col, row, 'harpoonEast', rotated_img)
         self.game.all_sprites.add(missile)
 
     def collide_enemy(self):
 
-        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_circle)
-
-        for hit in hits:
-            self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
+        check_grids = self.adjacent_grids()
+        for gridref in check_grids:
+            grid = self.game.enemies[gridref]
+            hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_circle)
+            for hit in hits:
+                self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
 
     def collide_pick_up(self, pick_ups):
 
@@ -285,7 +301,7 @@ class Player(Mobile_sprite):
         # self.vel = vec(0, 0)
 
         # Check platform collision and update rect
-
+        self.assign_sprite_to_grid(self.game.players)
         self.atMapBoundaries()
         self.collide_platforms(self.hitrect, 0)  # check horizontal collision
         self.collide_platforms(self.hitrect, 1)  # check vertical collision
@@ -309,37 +325,43 @@ class Player(Mobile_sprite):
 class Missile(Mobile_sprite):
 
     runspeed = 25
-
+    # TODO Have child classes of missile richochet walls sporadically if hits at an angle
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game,  col, row, refkey, image)
+        self.assign_sprite_to_grid(self.game.weapons)
         self.current_animation = self.game.weapons_images[refkey]
-        self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
+        # self.pos = vec(game.player.rect.centerx, game.player.rect.centery)
         self.rect_rtn = game.player.rect_rtn
         self.vel = game.player.direction.normalize() * Missile.runspeed
         self.vel.x += randrange(-2, 2, 1)  # vary the direction marginally
         self.vel.y += randrange(-2, 2, 1)
 
+    def ricochet(self):
+
+        pass
+
     def collide_enemy(self):
 
-        hits = pygame.sprite.spritecollide(self, self.game.mob_sprites, False, pygame.sprite.collide_rect_ratio(0.7))
-        if hits:
-            hits[0].hitpoints -= 10
-            self.kill()
+        check_grids = self.adjacent_grids()
+        for gridref in check_grids:
+            grid = self.game.enemies[gridref]
+            hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
+            if hits:
+                hits[0].hitpoints -= 10
+                self.kill()
 
     def update(self):
 
         # TODO Fix collision with map boundaries
+        self.assign_sprite_to_grid(self.game.weapons)
 
-        self.current_grids = self.get_grids(self.rect)  # update grid position
-        collide = False
-        for grid in self.current_grids:
-            if pygame.sprite.spritecollideany(self, grid, pygame.sprite.collide_rect_ratio(0.8)):
-                collide = True
-
-        if collide:
+        # collide walls
+        self.atMapBoundaries()
+        if self.collide_platforms(self.hitrect, 0) or self.collide_platforms(self.hitrect, 1):
+            self.ricochet()
             self.vel = vec(0, 0)
-            self.add(self.game.hold_sprites)
-            self.remove(self.game.active_sprites)
+            # self.add(self.game.hold_sprites)
+            self.remove(self.game.weapons[self.gridref])
 
         self.collide_enemy()
 
@@ -348,7 +370,7 @@ class Missile(Mobile_sprite):
 
 
 class Bubbles(Mobile_sprite):
-
+    """Shelved"""
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
         self.current_animation = self.game.effects_images[self.refkey]
@@ -374,12 +396,12 @@ class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
 
-    chase_player_rad = 15 * TILESIZE  # chase player if within radius
+    chase_player_rad = 1 * TILESIZE  # chase player if within radius
     mob_damage = 2  # deducted from player health (damage inflicted)
 
     def __init__(self, game, col, row, refkey, image):
         super().__init__(game, col, row, refkey, image)
-
+        self.assign_sprite_to_grid(self.game.enemies)
         self.rect_collisionF = pygame.Rect(0, 0, TILESIZE, TILESIZE)  # for testing only
         self.rect_collisionL = pygame.Rect(0, 0, TILESIZE, TILESIZE)  # for testing only
         self.parallel_vec = vec(1, 0)
@@ -402,9 +424,10 @@ class Enemy(Mobile_sprite):
 
     def avoid_walls(self):
         # TODO avoid map boundary walls
-        current_grids = self.get_grids(self.avoidRect)  # grids overlapping avoidRect
+        check_grids = self.adjacent_grids()
         hits = []  # list of sprites collided
-        for grid in current_grids:
+        for gridref in check_grids:
+            grid = self.game.walls[gridref]
             hits += pygame.sprite.spritecollide(self.avoidRect, grid, False, self.collide_rect)  # append collide sprites for each grid
         if hits:
 
@@ -468,14 +491,11 @@ class Enemy(Mobile_sprite):
         else:
             self.hit_player = False
 
-
     def death(self):
 
         if self.hitpoints <= 0:
-            self.rect_rtn = 0
-            self.vel = self.vel / 2  # velocity halved each loop
-            self.remove(self.game.mob_sprites)
-            self.remove(self.game.active_sprites)
+            self.rect_rtn = 0  # set back to horizontal
+            self.remove(self.game.enemies[self.gridref])
             self.add(self.game.hold_sprites)
 
             # update animation reel to death animation
@@ -485,6 +505,7 @@ class Enemy(Mobile_sprite):
 
     def update(self):
 
+        self.assign_sprite_to_grid(self.game.enemies)
         self.idle_swim(self.__class__.territory_rad)
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
@@ -496,9 +517,12 @@ class Enemy(Mobile_sprite):
         self.death()
         # self.pos += self.vel
 
+        # collide walls
         self.atMapBoundaries()
-        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
-        self.collide_platforms(self.hitrect, 1)  # check vertical collision
+        if self.collide_platforms(self.hitrect, 0):  # check horizontal collision
+            self.vel.x *= -1 / 2  # bounce off walls
+        if self.collide_platforms(self.hitrect, 1):  # check vertical collision
+            self.vel.y *= -1 / 2  # bounce off walls
 
         self.avoidRect.center = self.rect.center
 
@@ -577,7 +601,7 @@ class Dartfish(Enemy):
 
     def change_trajectory(self, direction):
         """ Will switch geometric progression from inward to outward spiral path, so mob will intersect target at current target.pos
-            Uses control variable d: if d=1 will continue inward spiral by default, if d=-1 will switch to outward spiral path """
+            Uses control variable c: if c=1 will continue inward spiral by default, if c=-1 will switch to outward spiral path """
         alt_rad = get_radius_vector(self.vel, self.theta, 1/self.geo_pro, direction)  # radius vector from origin for outward spiral if currently following inward spiral path, and vice versa
         target_rad = alt_rad - self.target_vec    # radius vector between target and origin of alternate spiral trajectory
         delta = get_angleii(alt_rad, target_rad, direction)
