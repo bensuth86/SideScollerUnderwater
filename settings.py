@@ -15,10 +15,10 @@ repos = r"C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwate
 TITLE = "Animate player"
 
 # all screen dimensions, grids tiles multiples of 4
-TILESIZE = 36  # length, width in pixels
-SCREENWIDTH = 40 * TILESIZE  # screen width in tiles (must be divisible by 2)
-SCREENHEIGHT = 20 * TILESIZE  # screen height in tiles
-GRIDWIDTH, GRIDHEIGHT = 5*TILESIZE, 5*TILESIZE  # map divided into grids 4 X 4 TILES
+# TILESIZE = 46  # length, width in pixels
+SCREENWIDTH = 1472  # screen width in tiles (must be divisible by 2)
+SCREENHEIGHT = 736  # screen height in tiles
+# GRIDWIDTH, GRIDHEIGHT = 5*TILESIZE, 5*TILESIZE  # map divided into grids 4 X 4 TILES
 
 FPS = 60
 
@@ -26,23 +26,14 @@ FPS = 60
 BACKGROUND = path.join(repos, "Images", "UnderwaterBackground.png")
 
 # Map keys
-PLATFORMKEY = {'8': 'roof',
-               '2': 'floor',
-               '4': 'wallRight',
-               '6': 'wallLeft',
-               '7': 'topRightCorner',
-               '9': 'topLeftCorner',
-               '1': 'bottomLeftCorner',
-               '3': 'bottomRightCorner',
-               '5': 'tunnelLeft',
-               '0': 'tunnelRight'
-               }
-
-# read sprite data from text files and store to dictionary
-
-PLATFORMS = readSpriteData(path.join(repos, 'spritedata', 'platformsdata.txt'))
-PROPS = readSpriteData(path.join(repos, 'spritedata', 'propsdata.txt'))
-PLAYER = readSpriteData(path.join(repos, 'spritedata', 'playerdata.txt'))
-MOBS = readSpriteData(path.join(repos, 'spritedata', 'mobsdata.txt'))
-EFFECTS = readSpriteData(path.join(repos, 'spritedata', 'effectsdata.txt'))
-WEAPONS = readSpriteData(path.join(repos, 'spritedata', 'weaponsdata.txt'))
+# PLATFORMKEY = {'8': 'roof',
+#                '2': 'floor',
+#                '4': 'wallRight',
+#                '6': 'wallLeft',
+#                '7': 'topRightCorner',
+#                '9': 'topLeftCorner',
+#                '1': 'bottomLeftCorner',
+#                '3': 'bottomRightCorner',
+#                '5': 'tunnelLeft',
+#                '0': 'tunnelRight'
+#                }

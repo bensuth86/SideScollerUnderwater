@@ -1,7 +1,7 @@
 from pygame import transform
 
 
-def resize_images(frame, newsize, ):  # (width, height)
+def resize_images(frame, newsize):  # (width, height)
 
     def apply(image):
         image = transform.scale(image, newsize)
