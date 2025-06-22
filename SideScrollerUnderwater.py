@@ -112,7 +112,7 @@ class TiledMap:
                         surface.blit(tile_image, (x, y))  # blit tile onto map surf image
                         if layer.name == 'Platforms':
                             # generate platform tile sprites and store to Platforms map layer
-                            Platform(self.game, x, y, tile_image)
+                            Platform(self.game, x, y, tile_image, 'platforms')
 
     def generate_map(self):
 
@@ -136,6 +136,7 @@ class Grid(pygame.sprite.Group):
 
 
 class Game:
+
 
     MOBCLASSES = {
         'dartfish': Dartfish,
@@ -166,12 +167,7 @@ class Game:
         self.setup_grid_refs()
 
         # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
-        self.grid_squares = self.generate_map_layer()  # empty grid TESTING ONLY
-        self.players = self.generate_map_layer()
-        self.platforms = self.generate_map_layer()
-        self.pickups = self.generate_map_layer()
-        self.weapons = self.generate_map_layer()
-        self.enemies = self.generate_map_layer()
+        self.map_layers = self.generate_map_layers()
 
         # comment explaining next 2 lines
         self.map_img = self.map.generate_map()
@@ -202,21 +198,27 @@ class Game:
         self.x_coords = AZZ[:(int(self.map.width/self.map.gridwidth))]  # grid squares along map length [A, B, C, D ...
         self.y_coords = [str(n) for n in range(int(self.map.height/self.map.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
 
-    def generate_map_layer(self):
+    def generate_map_layers(self):
         """ Map layers for Platforms, players, mobs etc.  Each layer divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites """
 
-        map_layer = {}
-        # generate grid squares
-        for i, grid_col in enumerate(self.x_coords):
-            for j, grid_row in enumerate(self.y_coords):
+        map_layers = {'platforms': {},
+                      'players': {},
+                      'weapons': {},
+                      'enemies': {}
+                      }
 
-                grid_ref = (grid_col+grid_row)  # 'A1'
-                x1, y1 = (i * self.map.gridwidth), (j * self.map.gridheight)  # top left corner
-                x2, y2 = x1+self.map.gridwidth, y1+self.map.gridheight  # bottom right corner
-                grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
-                map_layer[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
+        for value in map_layers.values():
+            # generate grid squares
+            for i, grid_col in enumerate(self.x_coords):
+                for j, grid_row in enumerate(self.y_coords):
 
-        return map_layer
+                    grid_ref = (grid_col+grid_row)  # 'A1'
+                    x1, y1 = (i * self.map.gridwidth), (j * self.map.gridheight)  # top left corner
+                    x2, y2 = x1+self.map.gridwidth, y1+self.map.gridheight  # bottom right corner
+                    grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
+                    value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
+
+        return map_layers
 
     def read_text_map(self):
         """Shelved"""
@@ -272,12 +274,13 @@ class Game:
         # generate mobile sprites from TiledMap object layers
         for tile_object in self.map.tmxdata.objects:
             if tile_object.name == 'Player':
-                self.player = Player(self, tile_object.x, tile_object.y, self.player_images['player_idle'][0], 'player')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+                self.player = Player(self, tile_object.x, tile_object.y, self.player_images['player_idle'][0], 'players', 'player')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
                 self.all_sprites.add(self.player)
             if tile_object.name == 'Enemy':
                 mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
+                # TODO distributed random selection e.g. every 1 in 10 mobs select Daddyfish, 1 in 3 select Dartfish etc
                 img = self.mob_images[mobkey][0]
-                mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, img, mobkey)
+                mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, img, 'enemies', mobkey)
                 self.all_sprites.add(mob)
 
     def run(self):
@@ -324,13 +327,12 @@ class Game:
         #     self.camera.update(mob)
 
         # update sprites by grid
-        for map_layer in [self.players, self.pickups, self.weapons, self.enemies]:
+        # TODO only update grids currently on screen plus grids adjacent to to screen edges
+        for map_layer in self.map_layers.values():
 
             for gridref in map_layer:
                 grid = map_layer[gridref]  # return grid (spritegroup)
                 grid.update()  # call update function for all sprites in grid spritegroup
-                for sprite in grid:
-                    sprite.pos += sprite.vel  # update sprite positions individually
 
         # update hold_sprites
         for sprite in self.hold_sprites:
