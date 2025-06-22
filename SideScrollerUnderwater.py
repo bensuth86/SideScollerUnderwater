@@ -137,11 +137,10 @@ class Grid(pygame.sprite.Group):
 
 class Game:
 
-    screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        'daddyfish': Daddyfish
+        # 'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -149,7 +148,7 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         pygame.display.set_caption(TITLE)
-        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
+        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), pygame.RESIZABLE)
         self.camera = Camera(self)
 
         self.clock = pygame.time.Clock()
@@ -273,7 +272,6 @@ class Game:
         # generate mobile sprites from TiledMap object layers
         for tile_object in self.map.tmxdata.objects:
             if tile_object.name == 'Player':
-
                 self.player = Player(self, tile_object.x, tile_object.y, self.player_images['player_idle'][0], 'player')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
                 self.all_sprites.add(self.player)
             if tile_object.name == 'Enemy':

@@ -32,7 +32,7 @@ class Static_sprite(pygame.sprite.Sprite):
 
 class Platform(Static_sprite):
     """Wall sprite; player, mobs can't pass through"""
-    antiGrav = 0.5  # constant of acceleration which repels mob sprites away from walls
+    antiGrav = 12  # constant of acceleration which repels mob sprites away from walls
 
     def __init__(self, game, x, y, image):
         """Generates a single platform tile."""
@@ -404,15 +404,14 @@ class Bubbles(Mobile_sprite):
 class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
-
-    # chase_player_rad = 1 * self.game.map.tilesize  # chase player if within radius
     mob_damage = 2  # deducted from player health (damage inflicted)
+    antiGrav = 0.2  # constant of accn which repels mobs away from each other within avoid_rad
 
     def __init__(self, game, x, y, image, refkey):
         super().__init__(game, x, y, image, refkey)
 
         self.assign_sprite_to_grid(self.game.enemies)
-        self.chase_player_rad = 10 * self.game.map.tilesize  # chase player if within radius
+        self.chase_player_rad = 20 * self.game.map.tilesize  # chase player if within radius
         self.rect_collisionF = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
         self.rect_collisionL = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
         # self.parallel_vec = vec(1, 0)
@@ -433,9 +432,9 @@ class Enemy(Mobile_sprite):
 
         Enemy.num_of_mobs += 1
 
-    def avoid_walls(self):
+    def avoid_wallsi(self):
         # TODO avoid map boundary walls
-
+        """ Avoid wall collisions with platforms in current and adjacent grids"""
         check_grids = self.adjacent_grids()
         hits = []  # list of sprites collided
         for gridref in check_grids:
@@ -449,6 +448,26 @@ class Enemy(Mobile_sprite):
             # self.displacement = vec(displacement.x, displacement.y)  # testing only
             anti_g = -displacement * (Platform.antiGrav / displacement.length())  # accelleration away from wall- inversly proportional to displacemnt
             self.vel += anti_g
+
+    def avoid_walls(self):
+        # TODO avoid map boundary walls
+        """ Avoid wall collisions with platforms in current and adjacent grids"""
+        check_grids = self.adjacent_grids()
+
+        for gridref in check_grids:
+            for ptf in self.game.platforms[gridref]:
+                displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
+                anti_g = -displacement * (Platform.antiGrav / displacement.length()**2)  # accelleration away from wall- inversly proportional to displacemnt squared
+                self.vel += anti_g
+
+    def avoid_mobs(self):
+        """ Avoid bunching together when chasing player by avoiding other mobs in current grid"""
+
+        for mob in self.game.enemies[self.gridref]:  # loop through mobs in current grid
+            if mob != self:  # exlude self
+                displacement = mob.pos - self.pos
+                anti_g = -displacement * (Enemy.antiGrav / displacement.length())
+                self.vel += anti_g
 
     def get_target_vector(self, target):
         """Find new target vector from mob centre to target centre."""
@@ -525,6 +544,7 @@ class Enemy(Mobile_sprite):
         self.get_target_vector(adjust_target)  # find new target vector
         self.chase_target()
         self.avoid_walls()
+        self.avoid_mobs()
         # self.collide_player()
         self.death()
         # self.pos += self.vel
@@ -580,6 +600,7 @@ class Dartfish(Enemy):
     territory_rad = 690  # 15 * TILESIZE
     error_margin = 0.5  # percentage error for tracking target vec
     switch_freq = 2  # switch to new target every n seconds
+
     avoidRect_length = 368  # 8 * TILESIZE  # rect for detecting platforms/ walls
 
     # turning parameters- trajectory follows log spiral path
