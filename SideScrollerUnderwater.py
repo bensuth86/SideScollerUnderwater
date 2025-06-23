@@ -137,11 +137,10 @@ class Grid(pygame.sprite.Group):
 
 class Game:
 
-
     MOBCLASSES = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
-        # 'daddyfish': Daddyfish
+        'daddyfish': Daddyfish
     }
 
     def __init__(self):
@@ -219,50 +218,6 @@ class Game:
                     value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
 
         return map_layers
-
-    def read_text_map(self):
-        """Shelved"""
-        """load map data from map.txt file: create platform, enemy sprites accordingly"""
-        # TODO individual map layers for platforms, mobs, items etc, each divided into grid square spritegroups
-        for row, tiles in enumerate(self.map.data):
-            for col, tile in enumerate(tiles):
-
-                # load platform tiles:  walls, roof, floors ...
-                platform_type = PLATFORMKEY.get(tile)
-                if platform_type:
-                    img = random.choice(self.platform_images[platform_type])  # randomly select platform image
-
-                    # tile sprites around map edges not included in self.platforms map layer (no collision detection or interaction with mobile sprites)
-                    if row == 0 or row == len(self.map.data)-1:
-                        tile = Static_sprite(self, col, row, platform_type, img)
-                    elif col == 0 or col == len(self.map.data[row])-1:
-                        tile = Static_sprite(self, col, row, platform_type, img)
-
-                    # tunnel entrances also for visuals only
-                    elif platform_type == 'tunnelLeft':
-                        tile = Static_sprite(self, col, row, platform_type, img)
-                    elif platform_type == 'tunnelRight':
-                        tile = Static_sprite(self, col, row, platform_type, img)
-                    # all other platforms added to self.platforms (collision, avoid walls etc)
-                    else:
-                        tile = Platform(self, col, row, platform_type, img)
-                    # create spawnpoints above floor platforms
-                    if platform_type == 'floor':
-                        self.spawnpoints.append((col, row))
-
-                    self.all_sprites.add(tile)  # for drawing only
-
-                # load enemy sprites
-                if tile == 'E':
-
-                    mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
-
-                    img = self.mob_images[mobkey][0]
-                    mob = Game.MOBCLASSES[mobkey](self, col, row, mobkey, img)
-                    # self.sprite_starting_grid(mob)
-                    # self.mob_sprites.add(mob)
-
-                    self.all_sprites.add(mob)
 
     def new(self):
         """Start a new game; initialise all variables, load or reload map data, sprites"""

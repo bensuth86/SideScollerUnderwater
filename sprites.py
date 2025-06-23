@@ -66,8 +66,15 @@ class Mine(Static_sprite):
     def __init__(self, game, x, y, image, maplayer):
 
         super().__init__(game, x, y, image, maplayer)
+        self.affect_area = self.adjacent_grids()
+        self.active = False
+        self.countdown = 5000  # countdown timer miliseconds
 
     def explode(self, player):
+
+        pass
+
+    def update(self):
 
         pass
 
@@ -106,7 +113,7 @@ class Mobile_sprite(Static_sprite):
         self.hitrect.width, self.hitrect.height = HRlength, HRlength
 
     def adjacent_grids(self):
-        """ Return list of current and adjacent grid e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
+        """ Return list of current and adjacent gridrefs e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
 
         adjacent_grids = []
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
@@ -125,18 +132,25 @@ class Mobile_sprite(Static_sprite):
 
         return rect.colliderect(platform.rect)
 
-    def collide_platforms(self, hitrect, axis):  # [0, 1] for either [x, y] axis
+    def collide_sprites(self, gridrefs, map_layer):
+        """ Return list of collided sprites for current & adj grids within specified maplayer"""
+        # check_grids = self.adjacent_grids()
+        # print([grid for grid in check_grids])
+        totalhits = []  # for colliding with sprites in multiple grids when between grid boundaries
+        for ref in gridrefs:
+
+            grid = self.game.map_layers[map_layer][ref]  # return sprite group from grid_squares dictionary
+            hits = pygame.sprite.spritecollide(self.hitrect, grid, False, self.collide_rect)
+            totalhits += hits
+
+        return totalhits
+
+    def collide_platforms(self, gridrefs, axis):  # [0, 1] for either [x, y] axis
         # TODO Fix player sprite 'judder' when moving along a platform
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect with new position
         self.rect.center = self.hitrect.center
 
-        check_grids = self.adjacent_grids()
-        # print([grid for grid in check_grids])
-        totalhits = []  # if colling with wall tiles in multiple grids when between grid boundaries
-        for gridref in check_grids:
-            grid = self.game.map_layers['platforms'][gridref]  # return sprite group from grid_squares dictionary
-            hits = pygame.sprite.spritecollide(hitrect, grid, False, self.collide_rect)
-            totalhits += hits
+        totalhits = self.collide_sprites(gridrefs, 'platforms')
 
         if totalhits:
 
@@ -284,14 +298,17 @@ class Player(Mobile_sprite):
         missile = Missile(self.game, self.pos.x, self.pos.y, missile_img, 'weapons', 'harpoon')
         self.game.all_sprites.add(missile)
 
-    def collide_enemy(self):
+    def collide_enemy(self, gridrefs):
 
-        check_grids = self.adjacent_grids()
-        for gridref in check_grids:
-            grid = self.game.map_layers['enemies'][gridref]
+        for ref in gridrefs:
+            grid = self.game.map_layers['enemies'][ref]
             hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_circle)
             for hit in hits:
                 self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
+
+    def collide_mine(self):
+
+        pass
 
     def collide_pick_up(self, pick_ups):
 
@@ -302,7 +319,7 @@ class Player(Mobile_sprite):
 
     def death(self):
 
-        if self.health < 0 and not self.dead:
+        if self.health < 0:
             self.dead = True
             print("Dead")
 
@@ -312,13 +329,15 @@ class Player(Mobile_sprite):
 
         # Check platform collision and update rect
         self.assign_sprite_to_grid()
+        gridrefs = self.adjacent_grids()  # return list of current and adjacent gridrefs
+
+        self.collide_platforms(gridrefs, 0)  # check horizontal collision
+        self.collide_platforms(gridrefs, 1)  # check vertical collision
         self.atMapBoundaries()
-        self.collide_platforms(self.hitrect, 0)  # check horizontal collision
-        self.collide_platforms(self.hitrect, 1)  # check vertical collision
 
         # check sprite collisions
         # self.collide_pick_up(self.game.pick_ups)
-        self.collide_enemy()
+        self.collide_enemy(gridrefs)
 
         self.death()
 
@@ -350,11 +369,10 @@ class Missile(Mobile_sprite):
 
         pass
 
-    def collide_enemy(self):
+    def collide_enemy(self, gridrefs):
 
-        check_grids = self.adjacent_grids()
-        for gridref in check_grids:
-            grid = self.game.map_layers['enemies'][gridref]
+        for ref in gridrefs:
+            grid = self.game.map_layers['enemies'][ref]
             hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
             if hits:
                 hits[0].hitpoints -= 10
@@ -364,16 +382,17 @@ class Missile(Mobile_sprite):
 
         # TODO Fix collision with map boundaries
         self.assign_sprite_to_grid()
+        gridrefs = self.adjacent_grids()
 
         # collide walls
         self.atMapBoundaries()
-        if self.collide_platforms(self.hitrect, 0) or self.collide_platforms(self.hitrect, 1):
+        if self.collide_platforms(gridrefs, 0) or self.collide_platforms(gridrefs, 1):
             self.ricochet()
             self.vel = vec(0, 0)
             self.add(self.game.hold_sprites)
             self.remove(self.game.map_layers[self.map_layer][self.gridref])
 
-        self.collide_enemy()
+        self.collide_enemy(gridrefs)
 
         self.pos += self.vel
         self.rect.center = self.pos
@@ -431,25 +450,24 @@ class Enemy(Mobile_sprite):
 
         Enemy.num_of_mobs += 1
 
-    def avoid_walls(self):
+    def avoid_walls(self, gridrefs):
         # TODO avoid map boundary walls
         """ Avoid wall collisions with platforms in current and adjacent grids"""
-        check_grids = self.adjacent_grids()
 
-        for gridref in check_grids:
-            for ptf in self.game.map_layers['platforms'][gridref]:
+        for ref in gridrefs:
+            for ptf in self.game.map_layers['platforms'][ref]:
                 displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
                 anti_g = -displacement * (Platform.antiGrav / displacement.length()**2)  # accelleration away from wall- inversly proportional to displacemnt squared
                 self.vel += anti_g
 
-    def avoid_mobs(self):
+    def avoid_mobs(self, gridrefs):
         """ Avoid bunching together when chasing player by avoiding other mobs in current grid"""
-
-        for mob in self.game.map_layers['enemies'][self.gridref]:  # loop through mobs in current grid
-            if mob != self:  # exclude self
-                displacement = mob.pos - self.pos
-                anti_g = -displacement * (Enemy.antiGrav / displacement.length())
-                self.vel += anti_g
+        for ref in gridrefs:
+            for mob in self.game.map_layers['enemies'][ref]:  # loop through mobs in current grid
+                if mob != self:  # exclude self
+                    displacement = mob.pos - self.pos
+                    anti_g = -displacement * (Enemy.antiGrav / displacement.length())
+                    self.vel += anti_g
 
     def get_target_vector(self, target):
         """Find new target vector from mob centre to target centre."""
@@ -476,7 +494,7 @@ class Enemy(Mobile_sprite):
         return adjust_target
 
     def idle_swim(self, territory_rad):
-
+        """ Swim towards random points (targets) on screen when not chasing player, other mobs etc"""
         switch_target = False
         if self.target_vec.length() < self.game.map.tilesize:
             switch_target = True
@@ -519,26 +537,26 @@ class Enemy(Mobile_sprite):
     def update(self):
 
         self.assign_sprite_to_grid()
+        gridrefs = self.adjacent_grids()
+
+        # collide walls
+        if self.collide_platforms(gridrefs, 0):  # check horizontal collision
+            self.vel.x *= -1 / 2  # bounce off walls
+        if self.collide_platforms(gridrefs, 1):  # check vertical collision
+            self.vel.y *= -1 / 2  # bounce off walls
+        self.atMapBoundaries()
+
         self.idle_swim(self.__class__.territory_rad)
         if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        adjust_target = self.target_error()  # add a % error to the target which switches between +/- error every second
+        adjust_target = self.target_error()  # add a % error to the target which switches between +/- error every second for less predictable mob movement
         self.get_target_vector(adjust_target)  # find new target vector
         self.chase_target()
-        self.avoid_walls()
-        self.avoid_mobs()
+        self.avoid_walls(gridrefs)
+        self.avoid_mobs(gridrefs)
         # self.collide_player()
         self.death()
         self.pos += self.vel
-
-        # collide walls
-        self.atMapBoundaries()
-        if self.collide_platforms(self.hitrect, 0):  # check horizontal collision
-            self.vel.x *= -1 / 2  # bounce off walls
-        if self.collide_platforms(self.hitrect, 1):  # check vertical collision
-            self.vel.y *= -1 / 2  # bounce off walls
-
-        self.avoidRect.center = self.rect.center
 
 
 class Daddyfish(Enemy):
@@ -553,8 +571,6 @@ class Daddyfish(Enemy):
 
     def __init__(self, game, x, y, image, maplayer, refkey):
         super().__init__(game, x, y, image, maplayer, refkey)
-        self.avoidRect = pygame.Rect(0, 0, Daddyfish.avoidRect_length, Daddyfish.avoidRect_length)
-        self.avoidRect.center = self.hitrect.center
 
         self.hitpoints = 100
         self.vel = vec(1, 0)
@@ -593,9 +609,6 @@ class Dartfish(Enemy):
 
     def __init__(self, game, x, y, image, maplayer, refkey):
         super().__init__(game, x, y, image, maplayer, refkey)
-
-        self.avoidRect = pygame.Rect(0, 0, Dartfish.avoidRect_length, Dartfish.avoidRect_length)
-        self.avoidRect.center = self.hitrect.center
 
         self.vel = Dartfish.vel
         self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
