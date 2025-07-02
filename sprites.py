@@ -32,19 +32,19 @@ class Static_sprite(pygame.sprite.Sprite):
     def get_gridref(self):
 
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
-        self.gridref = self.game.x_coords[grid_col] + self.game.y_coords[grid_row]
+        self.gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
 
     def assign_sprite_to_grid(self):
         """ Remove sprite from previous grids, and reassign sprite to corresponding grids (sprite groups) in game class grid squares dictionary"""
 
-        self.game.map_layers[self.map_layer][self.gridref].remove(self)  # remove sprite from grid for previous loop
+        self.game.map.layers[self.map_layer][self.gridref].remove(self)  # remove sprite from grid for previous loop
         self.get_gridref()  # get updated grid coordinates
-        self.game.map_layers[self.map_layer][self.gridref].add(self)  # add sprite to new grid
+        self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to new grid
 
 
 class Platform(Static_sprite):
     """Wall sprite; player, mobs can't pass through"""
-    antiGrav = 12  # constant of acceleration which repels mob sprites away from walls
+    antiGrav = 2  # constant of acceleration which repels mob sprites away from walls
 
     def __init__(self, game, x, y, image, maplayer):
         """Generates a single platform tile."""
@@ -61,24 +61,6 @@ class Pick_up(Static_sprite):
         player.game.score += 50
 
 
-class Mine(Static_sprite):
-
-    def __init__(self, game, x, y, image, maplayer):
-
-        super().__init__(game, x, y, image, maplayer)
-        self.affect_area = self.adjacent_grids()
-        self.active = False
-        self.countdown = 5000  # countdown timer miliseconds
-
-    def explode(self, player):
-
-        pass
-
-    def update(self):
-
-        pass
-
-
 class Mobile_sprite(Static_sprite):
     """Mobile sprites animated and/ or have velocity.  Self.pos is placed at rect.center rather than topleft for rotating sprites"""
 
@@ -92,8 +74,9 @@ class Mobile_sprite(Static_sprite):
         self.setup_hitrect()
 
         self.refkey = refkey  # the sprite dictionary key name
-        self.ref_image = image  # for mob image transformation (flip/ rotate)
-        self.image = self.ref_image
+        # self.ref_image = image  # for mob image transformation (flip/ rotate)
+        # self.image = self.ref_image
+        self.ref_image = self.image.copy()  # for mob image transformation (flip/ rotate)
         self.radius = 0.75 * ((self.rect.width+self.rect.height)/4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
         self.rect_rtn = 0  # rotate sprite rect and image
 
@@ -112,45 +95,43 @@ class Mobile_sprite(Static_sprite):
         HRlength = int((HRlength/2)+1) * 2  # if not divisible by 2 round up 1/2 HRlength length to nearest integer
         self.hitrect.width, self.hitrect.height = HRlength, HRlength
 
-    def adjacent_grids(self):
+    def get_adjacent_grids(self):
         """ Return list of current and adjacent gridrefs e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
 
-        adjacent_grids = []
+        self.adjacent_grids = []
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
         grids_left = max(grid_col-1, 0)  # return index position for grids to the left
-        grids_right = min(grid_col+1, len(self.game.x_coords)-1)
+        grids_right = min(grid_col+1, len(self.game.map.x_coords)-1)
         grids_above = max(grid_row-1, 0)
-        grids_below = min(grid_row+1, len(self.game.y_coords)-1)
+        grids_below = min(grid_row+1, len(self.game.map.y_coords)-1)
         for i in range(grids_left, grids_right+1):
             for j in range(grids_above, grids_below+1):
-                gridref = self.game.x_coords[i] + self.game.y_coords[j]
-                adjacent_grids.append(gridref)
-
-        return adjacent_grids
+                gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
+                self.adjacent_grids.append(gridref)
 
     def collide_rect(self, rect, platform):
 
         return rect.colliderect(platform.rect)
 
-    def collide_sprites(self, gridrefs, map_layer):
+    def collide_sprites(self, map_layer):
         """ Return list of collided sprites for current & adj grids within specified maplayer"""
         # check_grids = self.adjacent_grids()
         # print([grid for grid in check_grids])
         totalhits = []  # for colliding with sprites in multiple grids when between grid boundaries
-        for ref in gridrefs:
+        for ref in self.adjacent_grids:
 
-            grid = self.game.map_layers[map_layer][ref]  # return sprite group from grid_squares dictionary
+            grid = self.game.map.layers[map_layer][ref]  # return sprite group from grid_squares dictionary
             hits = pygame.sprite.spritecollide(self.hitrect, grid, False, self.collide_rect)
             totalhits += hits
 
         return totalhits
 
-    def collide_platforms(self, gridrefs, axis):  # [0, 1] for either [x, y] axis
+    def collide_platforms(self, axis):  # [0, 1] for either [x, y] axis
         # TODO Fix player sprite 'judder' when moving along a platform
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # update rect with new position
         self.rect.center = self.hitrect.center
 
-        totalhits = self.collide_sprites(gridrefs, 'platforms')
+        totalhits = self.collide_sprites('platforms')
 
         if totalhits:
 
@@ -219,7 +200,7 @@ class Player(Mobile_sprite):
 
     runspeed = 8
     rot_speed = 3  # degrees per second
-    health = 100
+    hitpoints = 100
 
     def __init__(self, game, x, y, image, maplayer, refkey):
         super().__init__(game, x, y, image, maplayer, refkey)
@@ -232,7 +213,7 @@ class Player(Mobile_sprite):
         self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
         self.refresh_rate = 0.15  # rate animation changes slide (0.5 - changes twice per second)
 
-        self.health = Player.health
+        self.hitpoints = Player.hitpoints
         self.dead = False
 
     def axial_movement(self):
@@ -298,17 +279,23 @@ class Player(Mobile_sprite):
         missile = Missile(self.game, self.pos.x, self.pos.y, missile_img, 'weapons', 'harpoon')
         self.game.all_sprites.add(missile)
 
-    def collide_enemy(self, gridrefs):
+    def collide_enemy(self):
 
-        for ref in gridrefs:
-            grid = self.game.map_layers['enemies'][ref]
+        for ref in self.adjacent_grids:
+            grid = self.game.map.layers['enemies'][ref]
             hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_circle)
             for hit in hits:
-                self.health -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # health deducted every 0.2 seconds
+                self.hitpoints -= interval_trigger(self.timer, 0.2, self.game.dt) * hit.mob_damage  # hitpoints deducted every 0.2 seconds
 
     def collide_mine(self):
 
-        pass
+        for ref in self.adjacent_grids:
+
+            for sprite in self.game.map.layers['weapons'][ref]:
+                if sprite.refkey == 'mine':
+                    displacement = vec(sprite.rect.center) - vec(self.rect.center)
+                    if displacement.length() < sprite.affect_rad:
+                        sprite.active = True  # if player within affect_rad activates mine countdown timer
 
     def collide_pick_up(self, pick_ups):
 
@@ -319,7 +306,7 @@ class Player(Mobile_sprite):
 
     def death(self):
 
-        if self.health < 0:
+        if self.hitpoints < 0:
             self.dead = True
             print("Dead")
 
@@ -329,15 +316,16 @@ class Player(Mobile_sprite):
 
         # Check platform collision and update rect
         self.assign_sprite_to_grid()
-        gridrefs = self.adjacent_grids()  # return list of current and adjacent gridrefs
+        self.get_adjacent_grids()  # return list of current and adjacent gridrefs
 
-        self.collide_platforms(gridrefs, 0)  # check horizontal collision
-        self.collide_platforms(gridrefs, 1)  # check vertical collision
+        self.collide_platforms(0)  # check horizontal collision
+        self.collide_platforms(1)  # check vertical collision
         self.atMapBoundaries()
 
         # check sprite collisions
         # self.collide_pick_up(self.game.pick_ups)
-        self.collide_enemy(gridrefs)
+        self.collide_mine()
+        self.collide_enemy()
 
         self.death()
 
@@ -349,6 +337,63 @@ class Player(Mobile_sprite):
         # update player animation reel
         self.change_action(self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
+
+
+class Mine(Mobile_sprite):
+
+    def __init__(self, game, x, y, image, map_layer, refkey):
+
+        super().__init__(game, x, y, image, map_layer, refkey)
+
+        self.affect_rad = 6 * game.map.tilesize
+        self.active = False
+        self.countdown = 3  # countdown timer seconds
+
+        self.current_animation = self.game.weapons_images[refkey]
+        self.explode_animation = self.game.effects_images['explosion4x4']
+        self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
+
+    def explode(self):
+
+        if self.countdown < 0:
+            self.inflict_damage('players')  # inflict damage on sprites within radius
+            self.inflict_damage('enemies')
+
+            # detonate other mines within adjacent grids
+            for ref in self.adjacent_grids:
+                for sprite in self.game.map.layers['weapons'][ref]:
+                    if sprite != self:
+                        if sprite.refkey == 'mine':
+                            displacement = vec(sprite.rect.center) - vec(self.rect.center)  # distance between 2 mines
+                            sprite.countdown = 1/50 * (displacement.length() // self.game.map.tilesize)  # countdown reset in proportion to distance
+                            sprite.active = True
+
+            self.remove(self.game.map.layers['weapons'][self.gridref])
+            self.add(self.game.hold_sprites)
+
+            # update animation reel to explosion animation
+            self.newaction = 'explode'
+            self.current_animation = self.explode_animation
+            self.change_action(self.newaction)  # change self.actionvar to new action
+
+    def inflict_damage(self, maplayerkey):
+
+        for ref in self.adjacent_grids:
+            for sprite in self.game.map.layers[maplayerkey][ref]:
+                displacement = vec(sprite.rect.center) - vec(self.rect.center)
+                damage = 100*(8*self.game.map.tilesize)**2 / displacement.length()**2  # 100+ hitpoint damage at 8 tiles or less distance
+                sprite.vel = displacement.normalize()*2000 / displacement.length()
+                sprite.hitpoints -= damage
+
+    def update(self):
+
+        self.assign_sprite_to_grid()
+        self.get_adjacent_grids()
+        print(self.adjacent_grids)
+
+        if self.active:
+            self.countdown -= self.game.dt
+            self.explode()
 
 
 class Missile(Mobile_sprite):
@@ -369,10 +414,10 @@ class Missile(Mobile_sprite):
 
         pass
 
-    def collide_enemy(self, gridrefs):
+    def collide_enemy(self):
 
-        for ref in gridrefs:
-            grid = self.game.map_layers['enemies'][ref]
+        for ref in self.adjacent_grids:
+            grid = self.game.map.layers['enemies'][ref]
             hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
             if hits:
                 hits[0].hitpoints -= 10
@@ -382,17 +427,17 @@ class Missile(Mobile_sprite):
 
         # TODO Fix collision with map boundaries
         self.assign_sprite_to_grid()
-        gridrefs = self.adjacent_grids()
+        self.get_adjacent_grids()
 
         # collide walls
         self.atMapBoundaries()
-        if self.collide_platforms(gridrefs, 0) or self.collide_platforms(gridrefs, 1):
+        if self.collide_platforms(0) or self.collide_platforms(1):
             self.ricochet()
             self.vel = vec(0, 0)
             self.add(self.game.hold_sprites)
-            self.remove(self.game.map_layers[self.map_layer][self.gridref])
+            self.remove(self.game.map.layers[self.map_layer][self.gridref])
 
-        self.collide_enemy(gridrefs)
+        self.collide_enemy()
 
         self.pos += self.vel
         self.rect.center = self.pos
@@ -426,12 +471,12 @@ class Enemy(Mobile_sprite):
 
     num_of_mobs = 0
     mob_damage = 2  # deducted from player health (damage inflicted)
-    antiGrav = 0.2  # constant of accn which repels mobs away from each other within avoid_rad
+    antiGrav = 0.05  # constant of accn which repels mobs away from each other within avoid_rad
 
     def __init__(self, game, x, y, image, maplayer, refkey):
         super().__init__(game, x, y, image, maplayer,  refkey)
 
-        self.chase_player_rad = 20 * self.game.map.tilesize  # chase player if within radius
+        self.chase_player_rad = 15 * self.game.map.tilesize  # chase player if within radius
         self.rect_collisionF = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
         self.rect_collisionL = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
 
@@ -450,20 +495,22 @@ class Enemy(Mobile_sprite):
 
         Enemy.num_of_mobs += 1
 
-    def avoid_walls(self, gridrefs):
+    def avoid_walls(self):
         # TODO avoid map boundary walls
         """ Avoid wall collisions with platforms in current and adjacent grids"""
 
-        for ref in gridrefs:
-            for ptf in self.game.map_layers['platforms'][ref]:
+        for ref in self.adjacent_grids:
+            for ptf in self.game.map.layers['platforms'][ref]:
                 displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
                 anti_g = -displacement * (Platform.antiGrav / displacement.length()**2)  # accelleration away from wall- inversly proportional to displacemnt squared
                 self.vel += anti_g
+                self.anti_g = anti_g  # TESTING only
 
-    def avoid_mobs(self, gridrefs):
+    def avoid_mobs(self):
+        # TODO anti_g is too large.  Refactor fnc or reduce Enemy Antigrav / vary antigrav for mob types
         """ Avoid bunching together when chasing player by avoiding other mobs in current grid"""
-        for ref in gridrefs:
-            for mob in self.game.map_layers['enemies'][ref]:  # loop through mobs in current grid
+        for ref in self.adjacent_grids:
+            for mob in self.game.map.layers['enemies'][ref]:  # loop through mobs in current grid
                 if mob != self:  # exclude self
                     displacement = mob.pos - self.pos
                     anti_g = -displacement * (Enemy.antiGrav / displacement.length())
@@ -508,7 +555,7 @@ class Enemy(Mobile_sprite):
         """ Currently shelved"""
         # TODO fix collide_player() to replace collide_emeny(): mob locks onto player and move at combined velocity
         if pygame.sprite.collide_circle(self, self.game.player):
-            self.game.player.health -= interval_trigger(self.timer, 0.2, self.game.dt) * self.mob_damage  # health deducted every 0.2 seconds
+            self.game.player.hitpoints -= interval_trigger(self.timer, 0.2, self.game.dt) * self.mob_damage  # hitpoints deducted every 0.2 seconds
             if not self.hit_player:  # initial collision with player
                 combined_vel = (self.vel - self.game.player.vel) * self.__class__.momentum
                 self.vel = combined_vel
@@ -526,7 +573,7 @@ class Enemy(Mobile_sprite):
 
         if self.hitpoints <= 0:
             self.rect_rtn = 0  # set back to horizontal
-            self.remove(self.game.map_layers['enemies'][self.gridref])
+            self.remove(self.game.map.layers['enemies'][self.gridref])
             self.add(self.game.hold_sprites)
 
             # update animation reel to death animation
@@ -537,12 +584,12 @@ class Enemy(Mobile_sprite):
     def update(self):
 
         self.assign_sprite_to_grid()
-        gridrefs = self.adjacent_grids()
+        self.get_adjacent_grids()
 
         # collide walls
-        if self.collide_platforms(gridrefs, 0):  # check horizontal collision
+        if self.collide_platforms(0):  # check horizontal collision
             self.vel.x *= -1 / 2  # bounce off walls
-        if self.collide_platforms(gridrefs, 1):  # check vertical collision
+        if self.collide_platforms(1):  # check vertical collision
             self.vel.y *= -1 / 2  # bounce off walls
         self.atMapBoundaries()
 
@@ -552,8 +599,8 @@ class Enemy(Mobile_sprite):
         adjust_target = self.target_error()  # add a % error to the target which switches between +/- error every second for less predictable mob movement
         self.get_target_vector(adjust_target)  # find new target vector
         self.chase_target()
-        self.avoid_walls(gridrefs)
-        self.avoid_mobs(gridrefs)
+        self.avoid_walls()
+        self.avoid_mobs()
         # self.collide_player()
         self.death()
         self.pos += self.vel

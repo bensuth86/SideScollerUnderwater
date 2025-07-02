@@ -80,6 +80,20 @@ class TextMap:
         self.top, self.btm = TILESIZE, self.height - TILESIZE
 
 
+class Grid(pygame.sprite.Group):
+    """Divide map layers into grid squares determined by map.gridwidth, map.gridheight.  Mobile sprites transfered to new grid sprite group
+     as they travel across the map for collision detection"""
+
+    def __init__(self, coordinates, x1, y1, x2, y2):
+
+        pygame.sprite.Group.__init__(self)
+        self.coordinates = coordinates
+        self.x1 = x1  # x top left corner of grid
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2  # y bottom right corner grid
+
+
 class TiledMap:
 
     def __init__(self, filename, game):
@@ -90,11 +104,17 @@ class TiledMap:
         self.width = tm.width * tm.tilewidth
         self.height = tm.height * tm.tileheight
 
-        self.gridwidth = 5 * self.tilesize  # map divided into grids 5 X 5 TILES
-        self.gridheight = 5 * self.tilesize
-
         self.LHS, self.RHS = self.tilesize, self.width - self.tilesize
         self.top, self.btm = self.tilesize, self.height - self.tilesize
+
+        self.gridwidth = 8 * self.tilesize  # map divided into grids 5 X 5 TILES
+        self.gridheight = 8 * self.tilesize
+
+        # grid square coordinates (A1, A2, A3 ... )
+        self.setup_grid_refs()
+
+        # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
+        self.layers = self.generate_map_layers()
 
         self.game = game
 
@@ -120,19 +140,38 @@ class TiledMap:
         self.read_tiled_data(temp_surface)
         return temp_surface
 
+    def setup_grid_refs(self):
+        """Return list of x coordinates and y coordinates to be assigned to grid squares"""
 
-class Grid(pygame.sprite.Group):
-    """Divide map layers into grid squares determined by map.gridwidth, map.gridheight.  Mobile sprites transfered to new grid sprite group
-     as they travel across the map for collision detection"""
+        # setup coords (A1, A2, A3 ....)
+        AZ = list(ascii_uppercase)  # list alphabet A-Z
+        AZZ = AZ + list(ascii_uppercase) + [letter1+letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
 
-    def __init__(self, coordinates, x1, y1, x2, y2):
+        self.x_coords = AZZ[:(int(self.width/self.gridwidth))]  # grid squares along map length [A, B, C, D ...
+        self.y_coords = [str(n) for n in range(int(self.height/self.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
 
-        pygame.sprite.Group.__init__(self)
-        self.coordinates = coordinates
-        self.x1 = x1  # x top left corner of grid
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2  # y bottom right corner grid
+    def generate_map_layers(self):
+        """ Map layers for Platforms, players, mobs etc.  Each layer divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites """
+
+        map_layers = {'empty': {},  # TESTING ONLY
+                      'platforms': {},
+                      'players': {},
+                      'weapons': {},
+                      'enemies': {}
+                      }
+
+        for value in map_layers.values():
+            # generate grid squares
+            for i, grid_col in enumerate(self.x_coords):
+                for j, grid_row in enumerate(self.y_coords):
+
+                    grid_ref = (grid_col+grid_row)  # 'A1'
+                    x1, y1 = (i * self.gridwidth), (j * self.gridheight)  # top left corner
+                    x2, y2 = x1+self.gridwidth, y1+self.gridheight  # bottom right corner
+                    grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
+                    value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
+
+        return map_layers
 
 
 class Game:
@@ -162,12 +201,6 @@ class Game:
         # load map from TiledMap
         self.map = TiledMap(path.join(repos, 'maps', 'test.tmx'), self)
 
-        # grid square coordinates (A1, A2, A3 ... )
-        self.setup_grid_refs()
-
-        # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
-        self.map_layers = self.generate_map_layers()
-
         # comment explaining next 2 lines
         self.map_img = self.map.generate_map()
         self.map_rect = self.map_img.get_rect()
@@ -181,43 +214,13 @@ class Game:
         # get images from spritesheets and store image surf to dictionary - dictionary ordered by category, then nested subcat if applicable
         self.effects_images = self.effects_spritesheet.get_sprite_images()
         self.effects_images['enemydeath4x4'] = resize_images(self.effects_images.get('enemydeath'), (4 * self.map.tilesize, 4 * self.map.tilesize))
+        self.effects_images['explosion4x4'] = resize_images(self.effects_images.get('explosion'), (4 * self.map.tilesize, 4 * self.map.tilesize))
+
         self.player_images = self.player_spritesheet.get_sprite_images()
         self.mob_images = self.mob_spritesheet.get_sprite_images()
         self.weapons_images = self.weapons_spritesheet.get_sprite_images()
 
         # self.spawnpoints = []  # locations adjacent platforms for spawning background props, pickups, effects etc
-
-    def setup_grid_refs(self):
-        """Return list of x coordinates and y coordinates to be assigned to grid squares"""
-
-        # setup coords (A1, A2, A3 ....)
-        AZ = list(ascii_uppercase)  # list alphabet A-Z
-        AZZ = AZ + list(ascii_uppercase) + [letter1+letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
-
-        self.x_coords = AZZ[:(int(self.map.width/self.map.gridwidth))]  # grid squares along map length [A, B, C, D ...
-        self.y_coords = [str(n) for n in range(int(self.map.height/self.map.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
-
-    def generate_map_layers(self):
-        """ Map layers for Platforms, players, mobs etc.  Each layer divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites """
-
-        map_layers = {'platforms': {},
-                      'players': {},
-                      'weapons': {},
-                      'enemies': {}
-                      }
-
-        for value in map_layers.values():
-            # generate grid squares
-            for i, grid_col in enumerate(self.x_coords):
-                for j, grid_row in enumerate(self.y_coords):
-
-                    grid_ref = (grid_col+grid_row)  # 'A1'
-                    x1, y1 = (i * self.map.gridwidth), (j * self.map.gridheight)  # top left corner
-                    x2, y2 = x1+self.map.gridwidth, y1+self.map.gridheight  # bottom right corner
-                    grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
-                    value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
-
-        return map_layers
 
     def new(self):
         """Start a new game; initialise all variables, load or reload map data, sprites"""
@@ -237,6 +240,10 @@ class Game:
                 img = self.mob_images[mobkey][0]
                 mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, img, 'enemies', mobkey)
                 self.all_sprites.add(mob)
+                self.mob_sprites.add(mob)  # TESTING ONLY
+            if tile_object.name == 'Mine':
+                mine = Mine(self, tile_object.x, tile_object.y, self.weapons_images['mine'][0], 'weapons', 'mine')
+                self.all_sprites.add(mine)
 
     def run(self):
         """ Main game loop"""
@@ -283,7 +290,7 @@ class Game:
 
         # update sprites by grid
         # TODO only update grids currently on screen plus grids adjacent to to screen edges
-        for map_layer in self.map_layers.values():
+        for map_layer in self.map.layers.values():
 
             for gridref in map_layer:
                 grid = map_layer[gridref]  # return grid (spritegroup)
@@ -319,14 +326,14 @@ class Game:
         font = pygame.font.Font('freesansbold.ttf', 16)
         text = font.render('GeeksForGeeks', True, GREEN, BLUE)
 
-        for grid_ref, sptgrp in self.grid_squares.items():
-
-            x1 = self.map.x_coords.index(grid_ref[0]) * self.map.gridwidth
-            y1 = self.map.y_coords.index(grid_ref[1]) * self.map.gridheight
+        # for grid_ref, sptgrp in self.grid_squares.items():
+        for grid in self.map.layers['empty'].values():
+            x1 = grid.x1
+            y1 = grid.y1
             x1 = x1 + self.camera.camera_rect.x  # update with camera movement
             y1 = y1 + self.camera.camera_rect.y
             pygame.draw.rect(self.screen, WHITE, [x1, y1, self.map.gridwidth, self.map.gridheight], 1)
-            text = font.render(grid_ref, True, GREEN, BLUE)
+            text = font.render(grid.coordinates, True, GREEN, BLUE)
             textRect = text.get_rect()
             textRect.topleft = (x1, y1)
             self.screen.blit(text, textRect)
@@ -341,11 +348,11 @@ class Game:
             sprite.draw()
 
         # HUD functions
-        draw_player_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.health / Player.health)
+        draw_player_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
 
         # TESTING ONLY #
 
-        # self.draw_grid()
+        self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
@@ -370,8 +377,8 @@ class Game:
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
 
-            pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
-            # pygame.draw.circle(self.screen, RED, (int(mob.target.x), int(mob.target.y)), 10, 1)  # draw target position
+            # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
+            # pygame.draw.circle(self.screen, RED, (int(mob.target.x+self.camera.camera_rect.x), int(mob.target.y+self.camera.camera_rect.y)), 10, 1)  # draw target position
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
             # pygame.draw.circle(self.screen, RED, (int(mob.rect.centerx), int(mob.rect.centery)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
