@@ -7,6 +7,7 @@ BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+DEEPBLUE = (8, 37, 64)
 YELLOW = (255, 255, 0)
 
 repos = r"C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater"  # working directory

@@ -12,7 +12,7 @@ from sprites import *
 
 # HUD functions
 
-def draw_player_health(surf, x, y, pct):
+def draw_sprite_health(surf, x, y, pct):
 
     pct = max(0, pct)
     bar_length = 100
@@ -136,7 +136,7 @@ class TiledMap:
 
     def generate_map(self):
 
-        temp_surface = pygame.Surface((self.width, self.height))  # create surface to draw map onto
+        temp_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)  # create surface to draw map onto
         self.read_tiled_data(temp_surface)
         return temp_surface
 
@@ -187,7 +187,7 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         pygame.display.set_caption(TITLE)
-        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
         self.camera = Camera(self)
 
         self.clock = pygame.time.Clock()
@@ -196,13 +196,14 @@ class Game:
         self.running = True  # game running
 
         # load background textures
-        self.background = pygame.image.load(BACKGROUND).convert()
+        self.background = pygame.image.load(BACKGROUND).convert_alpha()
 
         # load map from TiledMap
         self.map = TiledMap(path.join(repos, 'maps', 'test.tmx'), self)
 
         # comment explaining next 2 lines
         self.map_img = self.map.generate_map()
+        # self.map_img.set_colorkey(BLACK)  # set background to be transparent
         self.map_rect = self.map_img.get_rect()
 
         # init spritesheets
@@ -297,10 +298,12 @@ class Game:
                 grid.update()  # call update function for all sprites in grid spritegroup
 
         # update hold_sprites
+        cnt = 0
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
             sprite.pos += sprite.vel
             sprite.hitrect.center = sprite.pos  # must update hitrect rather than rect as rect position overwritten in Mobile_sprite.transform_image()
+
             if sprite.check_anim_end(sprite.current_animation):
                 sprite.kill()
 
@@ -316,7 +319,7 @@ class Game:
 
         font = pygame.font.Font('freesansbold.ttf', size)  # text font
         text_surface = font.render(text, True, colour)
-        text_surface.convert()
+        # text_surface.convert()
         text_rect = text_surface.get_rect()
         text_rect.center = (x, y)
         self.screen.blit(text_surface, text_rect)
@@ -341,14 +344,15 @@ class Game:
     def draw(self):
         """Game Loop - draw"""
         pygame.display.set_caption("{:.2f}".format(self.clock.get_fps()))
-        # self.screen.blit(self.background, (self.camera.rect.x, self.camera.rect.y))  # draw background
+        # self.screen.blit(self.background, (self.camera.camera_rect.x, self.camera.camera_rect.y))  # draw background
+        self.screen.fill(DEEPBLUE)
         self.screen.blit(self.map_img, self.camera.apply_rect(self.map_rect))
         # blit all map sprites, content
         for sprite in self.all_sprites:
             sprite.draw()
 
         # HUD functions
-        draw_player_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
+        draw_sprite_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
 
         # TESTING ONLY #
 
@@ -374,6 +378,7 @@ class Game:
 
         # mob data
         for mob in self.mob_sprites:
+            draw_sprite_health(self.screen, mob.pos.x - 50 + self.camera.camera_rect.x, mob.pos.y - 50 + self.camera.camera_rect.y, mob.hitpoints / mob.__class__.hitpoints)
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
 
@@ -397,7 +402,11 @@ class Game:
             # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.actual_rad.x, self.player.pos.y + mob.actual_rad.y), 3)  # final rad after subtending angle delta
 
             # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), 3)  # velocity vector
-
+        for grid in self.map.layers['weapons'].values():
+            for sprite in grid:
+                if sprite.refkey == 'mine':
+                    self.draw_text(sprite.gridref, 25, WHITE, sprite.pos.x + self.camera.camera_rect.x, sprite.pos.y + self.camera.camera_rect.y)
+                    pygame.draw.circle(self.screen, RED, (int(sprite.pos.x + self.camera.camera_rect.x), int(sprite.pos.y + self.camera.camera_rect.y)), sprite.affect_rad, 1)  # draw target position
         pygame.display.flip()  # *after* drawing everything, flip the display
 
     def show_start_screen(self):
