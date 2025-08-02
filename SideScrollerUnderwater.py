@@ -31,7 +31,7 @@ def draw_sprite_health(surf, x, y, pct):
 
 
 class Camera:
-    # TODO Fix camera 'stutter'
+    # TODO Fix camera lag for smooth motion
     # TODO Parallax scrolling; objects, map layers move at different rates rel to camera scrolling speed
     def __init__(self, game):
 
@@ -40,8 +40,9 @@ class Camera:
 
     def update(self, target):
         # update camera offset according to player's new position i.e. camera follows player
-        x_offset = -target.rect.centerx + (SCREENWIDTH / 2)  # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
-        y_offset = -target.rect.centery + (SCREENHEIGHT / 2)  # player moves up, map moves down ""            ""
+        x_offset = -target.rect.centerx + (SCREENWIDTH / 2) # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
+        y_offset = -target.rect.centery + (SCREENHEIGHT / 2) # player moves up, map moves down ""            ""
+
         # limit scrolling to map size
         x_offset = min(0, x_offset)  # left map edge
         y_offset = min(0, y_offset)  # top map edge
@@ -266,14 +267,14 @@ class Game:
                 if self.playing:  # if in game
                     self.playing = False  # exit game
                 self.running = False  # close pygame application
-
             if event.type == pygame.MOUSEBUTTONDOWN:
-                self.player.shoot()
+                self.player.choose_weapon_mousewheel(event)
 
             if event.type == pygame.KEYDOWN:
-                # player actions (movement controls determined by key.get_pressed in Player class)
-                if event.key == pygame.K_LCTRL:
-                    self.player.shoot()
+                if pygame.K_1 <= event.key <= pygame.K_9:
+                    print('Numpad 0-9')
+                    weapon_index = int(event.unicode)
+                    self.player.choose_weapon_numpad(weapon_index)
                 if event.key == pygame.K_q:
                     # exit game
                     pygame.event.set_grab(False)  # lock keyboard and mouse input into pygame app
@@ -288,17 +289,14 @@ class Game:
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
         #     self.camera.update(mob)
-
         # update sprites by grid
         # TODO only update grids currently on screen plus grids adjacent to to screen edges
-        for map_layer in self.map.layers.values():
-
-            for gridref in map_layer:
-                grid = map_layer[gridref]  # return grid (spritegroup)
+        for map_layer, grids in self.map.layers.items():
+            for gridref in grids:
+                grid = grids[gridref]  # return grid (spritegroup)
                 grid.update()  # call update function for all sprites in grid spritegroup
 
         # update hold_sprites
-        cnt = 0
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
             sprite.pos += sprite.vel
@@ -353,10 +351,15 @@ class Game:
 
         # HUD functions
         draw_sprite_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
+        for grid in self.map.layers['weapons'].values():
+            for sprite in grid:
+                if sprite.refkey == 'mine':
+                    if sprite.active:
+                        self.draw_text(str(int(sprite.countdown+1)), 50, RED, sprite.rect.centerx + self.camera.camera_rect.x, sprite.rect.centery + self.camera.camera_rect.y)
 
         # TESTING ONLY #
 
-        self.draw_grid()
+        # self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
@@ -367,17 +370,31 @@ class Game:
         # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
+        player_x = self.player.pos.x + self.camera.camera_rect.x
+        player_y = self.player.pos.y + self.camera.camera_rect.y
+
         pos = str(self.player.pos)
         # self.draw_text(pos, 22, RED, 100, 15)
         velocity = str(self.player.vel)
         # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
+
+        # draw player rect
+
         # pygame.draw.rect(self.screen, WHITE, self.player.rect, 2)  # player rect
-        pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)  # player hitrect
+        # pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)  # player hitrect
         # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
         # pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
 
+        for grid in self.map.layers['weapons'].values():
+            for sprite in grid:
+                # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
+                pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
+
         # mob data
         for mob in self.mob_sprites:
+            x_pos = mob.pos.x + self.camera.camera_rect.x
+            y_pos = mob.pos.y + self.camera.camera_rect.y
+
             draw_sprite_health(self.screen, mob.pos.x - 50 + self.camera.camera_rect.x, mob.pos.y - 50 + self.camera.camera_rect.y, mob.hitpoints / mob.__class__.hitpoints)
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
@@ -385,7 +402,7 @@ class Game:
             # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
             # pygame.draw.circle(self.screen, RED, (int(mob.target.x+self.camera.camera_rect.x), int(mob.target.y+self.camera.camera_rect.y)), 10, 1)  # draw target position
             # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
-            # pygame.draw.circle(self.screen, RED, (int(mob.rect.centerx), int(mob.rect.centery)), 10, 1)
+            # pygame.draw.circle(self.screen, RED, (int(x_pos), int(y_pos)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
             # target_angle = str(round(mob.target_angle, 0))
@@ -395,18 +412,19 @@ class Game:
             # draw vectors
             # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.displacement.x, mob.pos.y + mob.displacement.y), 3)  # displacement vector
-            # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.anti_g.x, mob.pos.y + mob.anti_g.y), 3)  # accn away from wall tiles
-            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x * 10, mob.pos.y + mob.vel.y *  10), 3)  # velocity vector
+            # pygame.draw.line(self.screen, WHITE, (x_pos, y_pos), (x_pos + mob.anti_g.x, y_pos + mob.anti_g.y), 3)  # accn away from wall tiles
+            # pygame.draw.line(self.screen, GREEN, (x_pos, y_pos), (x_pos + mob.vel.x * 10, y_pos + mob.vel.y *  10), 3)  # velocity vector
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
             # pygame.draw.line(self.screen, YELLOW, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 6)  # target rad from player to origin
             # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.actual_rad.x, self.player.pos.y + mob.actual_rad.y), 3)  # final rad after subtending angle delta
 
             # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), 3)  # velocity vector
-        for grid in self.map.layers['weapons'].values():
-            for sprite in grid:
-                if sprite.refkey == 'mine':
-                    self.draw_text(sprite.gridref, 25, WHITE, sprite.pos.x + self.camera.camera_rect.x, sprite.pos.y + self.camera.camera_rect.y)
-                    pygame.draw.circle(self.screen, RED, (int(sprite.pos.x + self.camera.camera_rect.x), int(sprite.pos.y + self.camera.camera_rect.y)), sprite.affect_rad, 1)  # draw target position
+
+        # for grid in self.map.layers['weapons'].values():
+        #     for sprite in grid:
+        #         if sprite.refkey == 'mine':
+        #             self.draw_text(sprite.gridref, 25, WHITE, sprite.pos.x + self.camera.camera_rect.x, sprite.pos.y + self.camera.camera_rect.y)
+        #             pygame.draw.circle(self.screen, RED, (int(sprite.pos.x + self.camera.camera_rect.x), int(sprite.pos.y + self.camera.camera_rect.y)), sprite.affect_rad, 1)  # draw target position
         pygame.display.flip()  # *after* drawing everything, flip the display
 
     def show_start_screen(self):

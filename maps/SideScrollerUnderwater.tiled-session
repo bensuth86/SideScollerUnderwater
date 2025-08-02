@@ -30,8 +30,8 @@
             "scale": 0.25,
             "selectedLayer": 3,
             "viewCenter": {
-                "x": 1816,
-                "y": 752
+                "x": 1872,
+                "y": -96
             }
         },
         "test.tmx#platforms": {
