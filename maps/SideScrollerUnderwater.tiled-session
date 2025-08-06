@@ -9,7 +9,7 @@
     ],
     "fileStates": {
         "": {
-            "scaleInDock": 0.5,
+            "scaleInDock": 0.75,
             "scaleInEditor": 1
         },
         "#platforms": {
@@ -42,7 +42,7 @@
             "scaleInDock": 0.5
         }
     },
-    "last.externalTilesetPath": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater/spritesheets",
+    "last.externalTilesetPath": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater/Images",
     "last.imagePath": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater/Images",
     "map.height": 40,
     "map.lastUsedFormat": "tmx",
@@ -57,13 +57,14 @@
         "test.tmx"
     ],
     "tileset.embedInMap": true,
-    "tileset.margin": 0,
-    "tileset.spacing": 0,
+    "tileset.lastUsedFilter": "Tiled tileset files (*.tsx *.xml)",
+    "tileset.margin": 10,
+    "tileset.spacing": 10,
     "tileset.tileSize": {
-        "height": 46,
-        "width": 46
+        "height": 92,
+        "width": 92
     },
     "tileset.transparentColor": "#000000",
     "tileset.type": 0,
-    "tileset.useTransparentColor": true
+    "tileset.useTransparentColor": false
 }

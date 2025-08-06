@@ -119,28 +119,6 @@ class TiledMap:
 
         self.game = game
 
-    def read_tiled_data(self, surface):
-        """ Generate platform tiles and single map surf image for drawing """
-        ti = self.tmxdata.get_tile_image_by_gid
-        for layer in self.tmxdata.visible_layers:  # check visible map layers (dictionary) in Tiled
-            if isinstance(layer, pytmx.TiledTileLayer):  # Tile Layer, Object Layer or Image Layer
-                for col, row, gid, in layer:
-                    # col = x * self.tmxdata.tilewidth
-                    # row = y * self.tmxdata.tileheight
-                    tile_image = ti(gid)
-                    if tile_image:
-                        x, y = col * self.tmxdata.tilewidth, row * self.tmxdata.tileheight  # position in pixels
-                        surface.blit(tile_image, (x, y))  # blit tile onto map surf image
-                        if layer.name == 'Platforms':
-                            # generate platform tile sprites and store to Platforms map layer
-                            Platform(self.game, x, y, tile_image, 'platforms')
-
-    def generate_map(self):
-
-        temp_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)  # create surface to draw map onto
-        self.read_tiled_data(temp_surface)
-        return temp_surface
-
     def setup_grid_refs(self):
         """Return list of x coordinates and y coordinates to be assigned to grid squares"""
 
@@ -156,6 +134,7 @@ class TiledMap:
 
         map_layers = {'empty': {},  # TESTING ONLY
                       'platforms': {},
+                      'pickups': {},
                       'players': {},
                       'weapons': {},
                       'enemies': {}
@@ -173,6 +152,26 @@ class TiledMap:
                     value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
 
         return map_layers
+
+    def read_tiled_data(self, surface):
+        """ Generate platform tiles and single map surf image for drawing """
+        ti = self.tmxdata.get_tile_image_by_gid
+        for layer in self.tmxdata.visible_layers:  # check visible map layers (dictionary) in Tiled
+            if isinstance(layer, pytmx.TiledTileLayer):  # Tile Layer, Object Layer or Image Layer
+                for col, row, gid, in layer:
+                    tile_image = ti(gid)
+                    if tile_image:
+                        x, y = col * self.tmxdata.tilewidth, row * self.tmxdata.tileheight  # position in pixels
+                        surface.blit(tile_image, (x, y))  # blit tile onto map surf image
+                        if layer.name == 'Platforms':
+                            # generate platform tile sprites and store to Platforms map layer
+                            Platform(self.game, x, y, tile_image, 'platforms')
+
+    def generate_map(self):
+
+        temp_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)  # create surface to draw map onto
+        self.read_tiled_data(temp_surface)
+        return temp_surface
 
 
 class Game:
@@ -209,6 +208,7 @@ class Game:
 
         # init spritesheets
         self.effects_spritesheet = SpriteSheet('effects')
+        self.pickups_spritesheet = SpriteSheet('PickUps')
         self.player_spritesheet = SpriteSheet('player')
         self.mob_spritesheet = SpriteSheet('mobs')
         self.weapons_spritesheet = SpriteSheet('weapons')
@@ -218,6 +218,7 @@ class Game:
         self.effects_images['enemydeath4x4'] = resize_images(self.effects_images.get('enemydeath'), (4 * self.map.tilesize, 4 * self.map.tilesize))
         self.effects_images['explosion4x4'] = resize_images(self.effects_images.get('explosion'), (4 * self.map.tilesize, 4 * self.map.tilesize))
 
+        self.pickup_iamges = self.pickups_spritesheet.get_sprite_images()
         self.player_images = self.player_spritesheet.get_sprite_images()
         self.mob_images = self.mob_spritesheet.get_sprite_images()
         self.weapons_images = self.weapons_spritesheet.get_sprite_images()
@@ -234,17 +235,17 @@ class Game:
         # generate mobile sprites from TiledMap object layers
         for tile_object in self.map.tmxdata.objects:
             if tile_object.name == 'Player':
-                self.player = Player(self, tile_object.x, tile_object.y, self.player_images['player_idle'][0], 'players', 'player')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+                self.player = Player(self, tile_object.x, tile_object.y,  'players', self.player_images, 'player_idle')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
                 self.all_sprites.add(self.player)
             if tile_object.name == 'Enemy':
                 mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
                 # TODO distributed random selection e.g. every 1 in 10 mobs select Daddyfish, 1 in 3 select Dartfish etc
-                img = self.mob_images[mobkey][0]
-                mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, img, 'enemies', mobkey)
+                # img = self.mob_images[mobkey][0]
+                mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, 'enemies', self.mob_images, mobkey)
                 self.all_sprites.add(mob)
                 self.mob_sprites.add(mob)  # TESTING ONLY
             if tile_object.name == 'Mine':
-                mine = Mine(self, tile_object.x, tile_object.y, self.weapons_images['mine'][0], 'weapons', 'mine')
+                mine = Mine(self, tile_object.x, tile_object.y, 'weapons', self.weapons_images, 'mine')
                 self.all_sprites.add(mine)
 
     def run(self):
