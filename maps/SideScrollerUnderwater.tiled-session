@@ -9,7 +9,7 @@
     ],
     "fileStates": {
         "": {
-            "scaleInDock": 0.75,
+            "scaleInDock": 1,
             "scaleInEditor": 1
         },
         "#platforms": {
@@ -27,19 +27,25 @@
             "scaleInDock": 1
         },
         "test.tmx": {
-            "scale": 0.25,
-            "selectedLayer": 3,
+            "scale": 0.5,
+            "selectedLayer": 4,
             "viewCenter": {
-                "x": 1872,
-                "y": -96
+                "x": 644,
+                "y": 740
             }
+        },
+        "test.tmx#PickUps": {
+            "scaleInDock": 0.5
+        },
+        "test.tmx#pickups": {
+            "scaleInDock": 0.5
         },
         "test.tmx#platforms": {
             "scaleInDock": 0.75,
             "scaleInEditor": 1
         },
         "test.tmx#props": {
-            "scaleInDock": 0.5
+            "scaleInDock": 0.75
         }
     },
     "last.externalTilesetPath": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater/Images",

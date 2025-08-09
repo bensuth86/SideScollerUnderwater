@@ -164,7 +164,7 @@ class TiledMap:
                         x, y = col * self.tmxdata.tilewidth, row * self.tmxdata.tileheight  # position in pixels
                         surface.blit(tile_image, (x, y))  # blit tile onto map surf image
                         if layer.name == 'Platforms':
-                            # generate platform tile sprites and store to Platforms map layer
+                            # generate platform tile sprites and store to platforms map layer
                             Platform(self.game, x, y, tile_image, 'platforms')
 
     def generate_map(self):
@@ -175,6 +175,22 @@ class TiledMap:
 
 
 class Game:
+
+    PICKUP_CATGRY = {"stamina": (lambda player: setattr(player, 'stamina', player.stamina + 50)),
+                     "mortarstrike": (lambda player: player.mortarstrike + 1),
+                     # "biomask": (),
+                     # "digiclock": (),
+                     "machete": (lambda player: player.machete is True),
+                     "medikit": (lambda player: setattr(player, 'hitpoints', player.hitpoints + 50)),
+                     "torpedolauncher": (lambda player: player.weaponstate.update({'torpedo': True})),
+                     "torpedos": (lambda player: player.ammo.update({key: value + 5 for key, value in player.ammo.items()})),
+                     "plasmagun": (lambda player: player.plasmagun is True),
+                     "plasmaammo": (lambda player: player.plasmaammo + 200),
+                     # "doorkey": (),
+                     "flashlight": (lambda player: player.flashlight is True),
+                     "respawnpoint": (lambda player: player.respawm is vec(46, 46)),
+                     "baitdecoy": (lambda player: player.baitdecoy + 5)
+                    }
 
     MOBCLASSES = {
         'dartfish': Dartfish,
@@ -218,12 +234,12 @@ class Game:
         self.effects_images['enemydeath4x4'] = resize_images(self.effects_images.get('enemydeath'), (4 * self.map.tilesize, 4 * self.map.tilesize))
         self.effects_images['explosion4x4'] = resize_images(self.effects_images.get('explosion'), (4 * self.map.tilesize, 4 * self.map.tilesize))
 
-        self.pickup_iamges = self.pickups_spritesheet.get_sprite_images()
+        self.pickup_images = self.pickups_spritesheet.get_sprite_images()
         self.player_images = self.player_spritesheet.get_sprite_images()
         self.mob_images = self.mob_spritesheet.get_sprite_images()
         self.weapons_images = self.weapons_spritesheet.get_sprite_images()
 
-        # self.spawnpoints = []  # locations adjacent platforms for spawning background props, pickups, effects etc
+        self.spawnpoints = []  # locations adjacent platforms for spawning background props, pickups, effects etc
 
     def new(self):
         """Start a new game; initialise all variables, load or reload map data, sprites"""
@@ -233,7 +249,13 @@ class Game:
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
         # generate mobile sprites from TiledMap object layers
+        for pickup in self.map.tmxdata.layernames['pickups']:
+
+            pickup = Pick_up(self, pickup.x, pickup.y, pickup.image, 'pickups', pickup.name)
+            self.all_sprites.add(pickup)
+
         for tile_object in self.map.tmxdata.objects:
+
             if tile_object.name == 'Player':
                 self.player = Player(self, tile_object.x, tile_object.y,  'players', self.player_images, 'player_idle')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
                 self.all_sprites.add(self.player)
@@ -269,11 +291,11 @@ class Game:
                     self.playing = False  # exit game
                 self.running = False  # close pygame application
             if event.type == pygame.MOUSEBUTTONDOWN:
-                self.player.choose_weapon_mousewheel(event)
+                if 4 <= event.button <= 5:  # middle mouse scroll
+                    self.player.choose_weapon_mousewheel(event)
 
             if event.type == pygame.KEYDOWN:
                 if pygame.K_1 <= event.key <= pygame.K_9:
-                    print('Numpad 0-9')
                     weapon_index = int(event.unicode)
                     self.player.choose_weapon_numpad(weapon_index)
                 if event.key == pygame.K_q:
@@ -351,7 +373,9 @@ class Game:
             sprite.draw()
 
         # HUD functions
-        draw_sprite_health(self.screen, 0.5*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
+        draw_sprite_health(self.screen, 0.2*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
+        self.draw_text(self.player.current_weapon, 20, RED, 0.5*SCREENWIDTH, 15)  # current weapon
+        self.draw_text(str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.8*SCREENWIDTH, 15)
         for grid in self.map.layers['weapons'].values():
             for sprite in grid:
                 if sprite.refkey == 'mine':

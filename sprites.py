@@ -14,7 +14,7 @@ vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
 class Static_sprite(pygame.sprite.Sprite):
 
-    """Single tile sprites which are inanimate; includes props, platforms. Data for static_sprites read from Tile Layers within map tmx file"""
+    """Static, inanimate sprites includes props, platforms, pickups.  No update method"""
     def __init__(self, game, x, y, image, map_layer):
 
         pygame.sprite.Sprite.__init__(self)
@@ -32,7 +32,7 @@ class Static_sprite(pygame.sprite.Sprite):
 
 
 class Platform(Static_sprite):
-    """Wall sprite; player, mobs can't pass through"""
+    """Wall sprite; player, mobs can't pass through.  Data read from Tile Layers within map tmx file"""
     antiGrav = 8  # constant of acceleration which repels mob sprites away from walls
 
     def __init__(self, game, x, y, image, map_layer):
@@ -41,17 +41,26 @@ class Platform(Static_sprite):
 
 
 class Pick_up(Static_sprite):
+    """Data read from Object Layers within map tmx file"""
+    def __init__(self, game, x, y, image, map_layer, pickup_cat):
 
-    def __init__(self, game, x, y, image, map_layer):
-        """Generates a single pick_up tile."""
         super().__init__(game, x, y, image, map_layer)
+        self.pickup_cat = pickup_cat
 
-    def apply_pickup(self, player):
-        player.game.score += 50
+    def apply_pickup(self):
+
+        update_inst = self.game.PICKUP_CATGRY[self.pickup_cat]  # apply lambda function for pickup_cat
+        update_inst(self.game.player)
+        # self.game.PICKUP_CATGRY[self.pickup_cat](self.game.player)
+        self.game.player.score += 50
+
+    def draw(self):
+
+        self.game.screen.blit(self.image, self.game.camera.apply(self))
 
 
 class Mobile_sprite(pygame.sprite.Sprite):
-    """Mobile sprites are animated and/ or have velocity.  Data for static_sprites read from Object Layers within map tmx file.
+    """Mobile sprites are animated and/ or have velocity.  Data read from Object Layers within map tmx file.
     Self.pos is placed at rect.center rather than topleft for rotating sprites"""
     damage_alpha = [i for i in range(0, 255, 55)]  # setup sequence of alpha channel (transparency) values to iterate through upon receiving damage
     # damage alpha chain from 0 to 255 in steps of 55
@@ -444,15 +453,22 @@ class Player(Mobile_sprite):
     runspeed = 8
     rot_speed = 3  # degrees per second
     hitpoints = 100
+    stamina = 100
     rate_of_fire = 0.4  # rate at which player shoots (seconds)
 
     weaponclasses = {'harpoon': Harpoon,
                      'torpedo': Torpedo
                      }
+    weaponindex = [key for index, key in enumerate(weaponclasses)]  # ordered list of weapon keys
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
         super().__init__(game, x, y, map_layer, image_dict, refkey)
+        self.score = 0
+        self.hitpoints = Player.hitpoints
+        self.stamina = Player.stamina
 
+        # self.torpedolauncher = False
+        self.torpedos = 0
         # self.image.fill(RED)
         self.vel = vec(0, 0)
         self.direction = vec(1, 0)
@@ -462,10 +478,19 @@ class Player(Mobile_sprite):
         self.refresh_rate = 0.15  # rate animation changes slide (0.5 - changes twice per second)
 
         self.last_shot = 0  # get self.timer at instant player shoots to control fire_rate
-        self.hitpoints = Player.hitpoints
         self.dead = False
         self.current_weapon = 'harpoon'  # Default weaponclassed key
-        self.weaponslist = ['harpoon', 'torpedo']
+        self.weaponstate = {'harpoon': True,
+                            'torpedo': False,
+                            'plasmagun': False}
+
+        self.ammo = {'harpoon': 200,
+                     'torpedo': 4}
+
+    def apply_clamps(self):
+
+        self.hitpoints = max(0, min(self.hitpoints, Player.hitpoints))
+        self.stamina = max(0, min(self.hitpoints, Player.stamina))
 
     def axial_movement(self, keys):
 
@@ -526,18 +551,29 @@ class Player(Mobile_sprite):
 
     def choose_weapon_numpad(self, index):
 
-        index %= len(self.weaponslist)
-        self.current_weapon = self.weaponslist[index-1]
+        # index %= len(Player.weaponindex)
+        index = max(0, min(index, len(Player.weaponindex)))
+
+        weaponkey = Player.weaponindex[index-1]
+        if self.weaponstate[weaponkey]:  # if player carrying selected weapon key
+            self.current_weapon = weaponkey
+            # print(self.current_weapon)
+
+        # self.current_weapon = self.weaponslist[index-1]
 
     def choose_weapon_mousewheel(self, event):
-        current_index = self.weaponslist.index(self.current_weapon)
+
+        current_index = self.weaponindex.index(self.current_weapon)
         if event.button == 4:
             current_index -= 1
         elif event.button == 5:
             current_index += 1
 
-        current_index %= len(self.weaponslist)  # loop weaponslist
-        self.current_weapon = self.weaponslist[current_index]
+        current_index %= len(self.weaponindex)  # loop weaponslist
+        weaponkey = Player.weaponindex[current_index]
+        if self.weaponstate[weaponkey]:  # if player carrying selected weapon key
+            self.current_weapon = weaponkey
+            # print(self.current_weapon)
 
     def shoot(self, keys):
 
@@ -545,9 +581,12 @@ class Player(Mobile_sprite):
             # if interval_trigger(self.game.elapsed_time, Player.rate_of_fire, self.game.dt):
             if self.game.elapsed_time - self.last_shot > Player.rate_of_fire:
                 self.last_shot = self.game.elapsed_time * 1
-                missile_startpos = self.pos + 5*self.direction.normalize()  # start position offset from player.rect by 5 pixels
-                missile = Player.weaponclasses[self.current_weapon](self.game, missile_startpos.x, missile_startpos.y, 'weapons', self.game.weapons_images, self.current_weapon)
-                self.game.all_sprites.add(missile)
+                if self.ammo[self.current_weapon] > 0:
+                    missile_startpos = self.pos + 5*self.direction.normalize()  # start position offset from player.rect by 5 pixels
+                    missile = Player.weaponclasses[self.current_weapon](self.game, missile_startpos.x, missile_startpos.y, 'weapons', self.game.weapons_images, self.current_weapon)
+                    self.game.all_sprites.add(missile)
+                    self.ammo[self.current_weapon] -= 1
+                print(self.ammo[self.current_weapon])
 
     def collide_enemy(self):
 
@@ -567,12 +606,15 @@ class Player(Mobile_sprite):
                     if displacement.length() < sprite.affect_rad:
                         sprite.active = True  # if player within affect_rad activates mine countdown timer
 
-    def collide_pick_up(self, pick_ups):
+    def collide_pick_up(self):
 
-        hits = pygame.sprite.spritecollide(self, pick_ups, False, pygame.sprite.collide_rect_ratio(0.5))
+        # hits = pygame.sprite.spritecollide(self, pick_ups, False, pygame.sprite.collide_rect_ratio(0.5))
+        grid = self.game.map.layers['pickups'][self.gridref]
+        hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
         if hits:
+            hits[0].apply_pickup()
             hits[0].kill()  # delete sprite
-            hits[0].apply_pickup(self)
+            # hits[0].apply_pickup(self)
 
     def take_damage(self, points_lost):
 
@@ -591,7 +633,7 @@ class Player(Mobile_sprite):
 
     def death(self):
 
-        if self.hitpoints < 0:
+        if self.hitpoints == 0:
             self.dead = True
 
     def update(self):
@@ -606,7 +648,7 @@ class Player(Mobile_sprite):
         self.collide_platforms(1)  # check vertical collision
 
         # check sprite collisions
-        # self.collide_pick_up(self.game.pick_ups)
+        self.collide_pick_up()
         self.collide_mine()
         self.collide_enemy()
 
@@ -622,6 +664,7 @@ class Player(Mobile_sprite):
         else:
             self.newaction = "player_hurt"
 
+        self.apply_clamps()
         self.death()
 
         self.pos += self.vel
@@ -711,7 +754,7 @@ class Enemy(Mobile_sprite):
         if interval_trigger(self.timer, 4, self.game.dt):
             switch_target = True
         if switch_target:
-            print(self.pos)
+
             self.target.x = randrange(self.start_pos.x - territory_rad, self.start_pos.x + territory_rad)
             self.target.y = randrange(self.start_pos.y - 0.2 * territory_rad, self.start_pos.y + 0.2 * territory_rad)
 
