@@ -288,8 +288,6 @@ class Harpoon(Mobile_sprite):
 
     runspeed = 25
 
-    # TODO Limit firerate for Harpoon, torpedo on button hold down
-
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
         super().__init__(game, x, y, map_layer, image_dict, refkey)
 
@@ -317,6 +315,9 @@ class Harpoon(Mobile_sprite):
 
     def update(self):
 
+        self.rect.center = self.pos
+        self.hitrect.center = self.rect.center + self.HRoffset
+
         self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
@@ -333,9 +334,9 @@ class Harpoon(Mobile_sprite):
 
         self.collide_enemy()
 
-        self.pos += self.vel
-        self.rect.center = self.pos
-        self.hitrect.center = self.rect.center + self.HRoffset
+        # self.pos += self.vel
+        # self.rect.center = self.pos
+        # self.hitrect.center = self.rect.center + self.HRoffset
 
 
 class Torpedo(Harpoon):
@@ -404,6 +405,9 @@ class Torpedo(Harpoon):
 
     def update(self):
 
+        self.rect.center = self.pos
+        self.hitrect.center = self.rect.center + self.HRoffset
+
         self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
@@ -419,9 +423,9 @@ class Torpedo(Harpoon):
         if any([self.collide_mine(), self.collide_enemy()]):
             self.explode()
 
-        self.pos += self.vel
-        self.rect.center = self.pos
-        self.hitrect.center = self.rect.center + self.HRoffset
+        # self.pos += self.vel
+        # self.rect.center = self.pos
+        # self.hitrect.center = self.rect.center + self.HRoffset
 
 
 class Bubbles(Mobile_sprite):
@@ -449,7 +453,7 @@ class Bubbles(Mobile_sprite):
 
 
 class Player(Mobile_sprite):
-    # TODO Player sprint on key bashing or key down, stamina bar
+
     runspeed = 8
     rot_speed = 3  # degrees per second
     hitpoints = 100
@@ -521,6 +525,7 @@ class Player(Mobile_sprite):
             self.newaction = "player_swimming"
 
         self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
+        # self.vel *= self.game.dt * TARGET_FPS
         self.direction = vec(unit_vel.x, unit_vel.y) if unit_vel else self.direction
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
@@ -678,7 +683,7 @@ class Player(Mobile_sprite):
         self.apply_clamps()
         self.death()
 
-        self.pos += self.vel
+        # self.pos += self.vel
         # update player animation reel
         self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
@@ -824,7 +829,7 @@ class Enemy(Mobile_sprite):
         # self.collide_player()
 
         self.death()
-        self.pos += self.vel
+        # self.pos += self.vel
 
 
 class Daddyfish(Enemy):

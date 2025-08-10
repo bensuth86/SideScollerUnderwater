@@ -22,7 +22,9 @@ SCREENWIDTH = 1472  # screen width in tiles (must be divisible by 2)
 SCREENHEIGHT = 736  # screen height in tiles
 # GRIDWIDTH, GRIDHEIGHT = 5*TILESIZE, 5*TILESIZE  # map divided into grids 4 X 4 TILES
 
-FPS = 60
+FPS = 60  # frames per second
+TARGET_FPS = 60  # targer frame rate- used for frame rate independence
+
 
 # Background
 BACKGROUND = path.join(repos, "Images", "UnderwaterBackground.png")

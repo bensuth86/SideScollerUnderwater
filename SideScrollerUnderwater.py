@@ -4,6 +4,7 @@ import pygame
 import pytmx
 import random
 from string import ascii_uppercase
+import time
 # from settings import *
 # from helpers.spritesheet_functions import *
 from helpers.transform_images import *
@@ -40,8 +41,8 @@ class Camera:
 
     def update(self, target):
         # update camera offset according to player's new position i.e. camera follows player
-        x_offset = -target.rect.centerx + (SCREENWIDTH / 2) # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
-        y_offset = -target.rect.centery + (SCREENHEIGHT / 2) # player moves up, map moves down ""            ""
+        x_offset = -target.rect.centerx + (SCREENWIDTH / 2)  # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
+        y_offset = -target.rect.centery + (SCREENHEIGHT / 2)  # player moves up, map moves down ""            ""
 
         # limit scrolling to map size
         x_offset = min(0, x_offset)  # left map edge
@@ -50,8 +51,8 @@ class Camera:
         y_offset = max(-(self.game.map.height - SCREENHEIGHT), y_offset)  # bottom map edge
 
         # # reposition camera rect  (remove/ comment out to 'switch off' camera)
-        self.camera_rect.x = int(x_offset)
-        self.camera_rect.y = int(y_offset)
+        self.camera_rect.x = x_offset
+        self.camera_rect.y = y_offset
 
     def parallax_scrolling(self):
         """ Entity.rect moves by a fraction of camera offset e.g. 1/2 self.rect.x, 1/2 self.rect.y"""
@@ -116,6 +117,7 @@ class TiledMap:
 
         # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
         self.layers = self.generate_map_layers()
+        self.mobile_layers = ['players', 'weapons', 'enemies']  # map layers holding mobile sprites
 
         self.game = game
 
@@ -207,7 +209,7 @@ class Game:
         self.camera = Camera(self)
 
         self.clock = pygame.time.Clock()
-        self.elapsed_time = 0  # from new game start
+        self.elapsed_time = time.time()  # from new game start
         self.dt = 0  # time elapsed for 1 mainloop
         self.running = True  # game running
 
@@ -274,9 +276,13 @@ class Game:
         """ Main game loop"""
         self.playing = True
         while self.playing:
-            self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
-            self.dt = max(0.001, (min(0.1, self.dt)))
-            self.elapsed_time += self.dt
+            # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
+            self.clock.tick(FPS)
+            self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
+            print(self.dt)
+            # self.dt = max(0.001, (min(0.1, self.dt)))
+            self.elapsed_time += self.dt  # update elapsed time for current loop
+
             self.events()
             self.update()
             self.draw()
@@ -314,11 +320,20 @@ class Game:
         #     self.camera.update(mob)
         # update sprites by grid
         # TODO only update grids currently on screen plus grids adjacent to to screen edges
-        for map_layer, grids in self.map.layers.items():
-            for gridref in grids:
-                grid = grids[gridref]  # return grid (spritegroup)
-                grid.update()  # call update function for all sprites in grid spritegroup
+        # for map_layer, grids in self.map.layers.items():
+        #     for gridref in grids:
+        #         grid = grids[gridref]  # return grid (spritegroup)
+        #         grid.update()  # call update function for all sprites in grid spritegroup
+        #         sprite.pos += sprite.vel for sprite in grid.spritedict
+        #         for sprite in grid.spritedict:
+        #             sprite.pos += sprite.vel
 
+        for map_layer in self.map.mobile_layers:
+            grids = self.map.layers[map_layer]
+            for grid in grids.values():
+                grid.update()  # call update function for mobile sprites within current grid
+                for sprite in grid.spritedict:
+                    sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
         # update hold_sprites
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
@@ -415,6 +430,7 @@ class Game:
             for sprite in grid:
                 # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
                 pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
+                pass
 
         # mob data
         for mob in self.mob_sprites:
