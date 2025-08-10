@@ -12,20 +12,20 @@ from sprites import *
 
 # HUD functions
 
-def draw_sprite_health(surf, x, y, pct):
+def draw_sprite_bar(surf, x, y, pct, c1, c2, c3):
 
     pct = max(0, pct)
-    bar_length = 100
-    bar_height = 20
+    bar_length, bar_height = 100, 20
+    # bar_height = 20
     fill = pct * bar_length
     outline_rect = pygame.Rect(x, y, bar_length, bar_height)
     fill_rect = pygame.Rect(x, y, fill, bar_height)
     if pct > 0.6:
-        col = GREEN
+        col = c1
     elif pct > 0.3:
-        col = YELLOW
+        col = c2
     else:
-        col = RED
+        col = c3
     pygame.draw.rect(surf, col, fill_rect)
     pygame.draw.rect(surf, WHITE, outline_rect, 2)
 
@@ -373,9 +373,10 @@ class Game:
             sprite.draw()
 
         # HUD functions
-        draw_sprite_health(self.screen, 0.2*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints)
-        self.draw_text(self.player.current_weapon, 20, RED, 0.5*SCREENWIDTH, 15)  # current weapon
-        self.draw_text(str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.8*SCREENWIDTH, 15)
+        draw_sprite_bar(self.screen, 0.2*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
+        draw_sprite_bar(self.screen, 0.8*SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
+        self.draw_text(self.player.current_weapon, 20, RED, 0.4*SCREENWIDTH, 15)  # current weapon
+        self.draw_text(str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6*SCREENWIDTH, 15)
         for grid in self.map.layers['weapons'].values():
             for sprite in grid:
                 if sprite.refkey == 'mine':
@@ -420,7 +421,7 @@ class Game:
             x_pos = mob.pos.x + self.camera.camera_rect.x
             y_pos = mob.pos.y + self.camera.camera_rect.y
 
-            draw_sprite_health(self.screen, mob.pos.x - 50 + self.camera.camera_rect.x, mob.pos.y - 50 + self.camera.camera_rect.y, mob.hitpoints / mob.__class__.hitpoints)
+            draw_sprite_bar(self.screen, mob.pos.x - 50 + self.camera.camera_rect.x, mob.pos.y - 50 + self.camera.camera_rect.y, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
 

@@ -490,7 +490,16 @@ class Player(Mobile_sprite):
     def apply_clamps(self):
 
         self.hitpoints = max(0, min(self.hitpoints, Player.hitpoints))
-        self.stamina = max(0, min(self.hitpoints, Player.stamina))
+        self.stamina = max(0, min(self.stamina, Player.stamina))
+
+    def get_mouse(self, sensitivity):  #
+        """ Set sensitivity range to be betweeen 0.1 - 2 for current setup"""
+        pygame.mouse.set_visible(False)
+        movement = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
+
+        scrollH = 1 / 10 * movement[0] * sensitivity  # set x axis movement sensitivity
+        scrollH = max(min(15, scrollH), -15)  # set to be between 10-20
+        return scrollH  # return horizontal mouse movement
 
     def axial_movement(self, keys):
 
@@ -540,14 +549,15 @@ class Player(Mobile_sprite):
         self.vel = (unit_vel * Player.runspeed).rotate(-angle) if unit_vel else vec(0, 0)
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # rotate sprite
 
-    def get_mouse(self, sensitivity):  #
-        """ Set sensitivity range to be betweeen 0.1 - 2 for current setup"""
-        pygame.mouse.set_visible(False)
-        movement = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
+    def dash(self, keys):
 
-        scrollH = 1 / 10 * movement[0] * sensitivity  # set x axis movement sensitivity
-        scrollH = max(min(15, scrollH), -15)  # set to be between 10-20
-        return scrollH  # return horizontal mouse movement
+        if keys[pygame.K_SPACE] and self.vel:
+            if self.stamina > 0:
+                self.vel *= 1.5
+                self.stamina -= interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 5
+                self.newaction = 'player_rush'
+        else:
+            self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 1  # recover stamina
 
     def choose_weapon_numpad(self, index):
 
@@ -577,7 +587,7 @@ class Player(Mobile_sprite):
 
     def shoot(self, keys):
 
-        if pygame.mouse.get_pressed()[0] or keys[pygame.K_SPACE]:
+        if pygame.mouse.get_pressed()[0] or keys[pygame.K_LCTRL]:
             # if interval_trigger(self.game.elapsed_time, Player.rate_of_fire, self.game.dt):
             if self.game.elapsed_time - self.last_shot > Player.rate_of_fire:
                 self.last_shot = self.game.elapsed_time * 1
@@ -659,6 +669,7 @@ class Player(Mobile_sprite):
         if not self.damaged:
             self.axial_movement(keys)
             # self.rotational_movement(keys)
+            self.dash(keys)
             self.shoot(keys)
 
         else:
