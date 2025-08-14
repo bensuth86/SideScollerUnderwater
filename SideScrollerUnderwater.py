@@ -37,34 +37,46 @@ class Camera:
     def __init__(self, game):
 
         self.camera_rect = pygame.Rect(0, 0, SCREENWIDTH, SCREENHEIGHT)
+        self.pos = pygame.Vector2(0, 0)  # float-based camera position
         self.game = game
 
-    def update(self, target):
+    def update(self, target, lerp_factor=0.1):
+
         # update camera offset according to player's new position i.e. camera follows player
-        x_offset = -target.rect.centerx + (SCREENWIDTH / 2)  # player moves right, map moves left relative to camera.  Add half screen width to keep player centred on screen
-        y_offset = -target.rect.centery + (SCREENHEIGHT / 2)  # player moves up, map moves down ""            ""
+        x_offset = target.pos.x - (SCREENWIDTH / 2)
+        y_offset = target.pos.y - (SCREENHEIGHT / 2)
 
         # limit scrolling to map size
-        x_offset = min(0, x_offset)  # left map edge
-        y_offset = min(0, y_offset)  # top map edge
-        x_offset = max(-(self.game.map.width - SCREENWIDTH), x_offset)  # right map edge
-        y_offset = max(-(self.game.map.height - SCREENHEIGHT), y_offset)  # bottom map edge
+        x_offset = max(0, x_offset)  # left map edge
+        y_offset = max(0, y_offset)  # top map edge
+        x_offset = min(self.game.map.width - SCREENWIDTH, x_offset)  # right map edge
+        y_offset = min(self.game.map.height - SCREENHEIGHT, y_offset)  # bottom map edge
 
-        # # reposition camera rect  (remove/ comment out to 'switch off' camera)
-        self.camera_rect.x = x_offset
-        self.camera_rect.y = y_offset
+        # LERP current camera position toward target position (adjust between 0.05 - 0.2 for best results
+        self.pos.x += (x_offset - self.pos.x ) * lerp_factor
+        self.pos.y += (y_offset - self.pos.y ) * lerp_factor
 
-    def parallax_scrolling(self):
+    def parallax_scrolling(self, surface, background_image):
         """ Entity.rect moves by a fraction of camera offset e.g. 1/2 self.rect.x, 1/2 self.rect.y"""
-        pass
+        # Drawing background layer at 50% scroll speed
+        bg_offset = self.camera.pos * 0.5
+        surface.blit(background_image, (-bg_offset.x, -bg_offset.y))
 
     def apply(self, sprite):
+
         # move on screen objects according to camera offset e.g. player moves right, map objects shift left
-        return sprite.rect.move(self.camera_rect.topleft)
+        offset_x = sprite.rect.x - self.pos.x
+        offset_y = sprite.rect.y - self.pos.y
+        return offset_x, offset_y
+        # return sprite.rect.move(self.pos)
 
     def apply_rect(self, rect):
         """ Apply to rect rather than sprite"""
-        return rect.move(self.camera_rect.topleft)
+        # return rect.move(self.camera_rect.topleft)
+        offset_x = rect.x - self.pos.x
+        offset_y = rect.y - self.pos.y
+        return offset_x, offset_y
+
 
 class TextMap:
     """Shelved """
@@ -279,8 +291,6 @@ class Game:
             # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
             self.clock.tick(FPS)
             self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
-            print(self.dt)
-            # self.dt = max(0.001, (min(0.1, self.dt)))
             self.elapsed_time += self.dt  # update elapsed time for current loop
 
             self.events()
@@ -320,13 +330,6 @@ class Game:
         #     self.camera.update(mob)
         # update sprites by grid
         # TODO only update grids currently on screen plus grids adjacent to to screen edges
-        # for map_layer, grids in self.map.layers.items():
-        #     for gridref in grids:
-        #         grid = grids[gridref]  # return grid (spritegroup)
-        #         grid.update()  # call update function for all sprites in grid spritegroup
-        #         sprite.pos += sprite.vel for sprite in grid.spritedict
-        #         for sprite in grid.spritedict:
-        #             sprite.pos += sprite.vel
 
         for map_layer in self.map.mobile_layers:
             grids = self.map.layers[map_layer]
@@ -334,6 +337,7 @@ class Game:
                 grid.update()  # call update function for mobile sprites within current grid
                 for sprite in grid.spritedict:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
+
         # update hold_sprites
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
@@ -346,9 +350,11 @@ class Game:
         # TODO - limit holding group size
         # Kill sprites in hold_sprites group if they're off screen
         for sprite in self.hold_sprites:
-            if sprite.rect.right < (0-self.camera.camera_rect.left) or sprite.rect.left > (2*SCREENWIDTH-self.camera.camera_rect.right):
+
+            if self.player.pos.x - sprite.rect.right > SCREENWIDTH * 5/8 or sprite.rect.left - self.player.pos.x > SCREENWIDTH * 5/8:
                 sprite.kill()
-            if sprite.rect.bottom < (0-self.camera.camera_rect.top) or sprite.rect.top > (2*SCREENHEIGHT-self.camera.camera_rect.bottom):
+
+            if self.player.pos.y - sprite.rect.bottom > SCREENHEIGHT * 5/8 or sprite.rect.top - self.player.pos.y > SCREENHEIGHT * 5/8:
                 sprite.kill()
 
     def draw_text(self, text, size, colour, x, y):
@@ -369,8 +375,8 @@ class Game:
         for grid in self.map.layers['empty'].values():
             x1 = grid.x1
             y1 = grid.y1
-            x1 = x1 + self.camera.camera_rect.x  # update with camera movement
-            y1 = y1 + self.camera.camera_rect.y
+            x1 = x1 + self.camera.pos.x  # update with camera movement
+            y1 = y1 + self.camera.pos.y
             pygame.draw.rect(self.screen, WHITE, [x1, y1, self.map.gridwidth, self.map.gridheight], 1)
             text = font.render(grid.coordinates, True, GREEN, BLUE)
             textRect = text.get_rect()
@@ -382,9 +388,11 @@ class Game:
         pygame.display.set_caption("{:.2f}".format(self.clock.get_fps()))
         # self.screen.blit(self.background, (self.camera.camera_rect.x, self.camera.camera_rect.y))  # draw background
         self.screen.fill(DEEPBLUE)
-        self.screen.blit(self.map_img, self.camera.apply_rect(self.map_rect))
+        offset_x, offset_y = self.camera.apply_rect(self.map_rect)
+        # self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
         # blit all map sprites, content
         for sprite in self.all_sprites:
+
             sprite.draw()
 
         # HUD functions
@@ -396,8 +404,9 @@ class Game:
             for sprite in grid:
                 if sprite.refkey == 'mine':
                     if sprite.active:
-                        self.draw_text(str(int(sprite.countdown+1)), 50, RED, sprite.rect.centerx + self.camera.camera_rect.x, sprite.rect.centery + self.camera.camera_rect.y)
+                        self.draw_text(str(int(sprite.countdown+1)), 50, RED, sprite.rect.centerx - self.camera.pos.x, sprite.rect.centery - self.camera.pos.y)
 
+        pygame.display.flip()  # *after* drawing everything, flip the display
         # TESTING ONLY #
 
         # self.draw_grid()
@@ -406,13 +415,13 @@ class Game:
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
 
         # camera.rect offset
-        camera_position = (self.camera.camera_rect.left, self.camera.camera_rect.right)
-        camera_position = str(camera_position)
+        # camera_position = (self.camera.pos.x, self.camera.pos.y)
+        camera_position = str((round(self.camera.pos.x, 1), round(self.camera.pos.y, 1)))
         # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
-        player_x = self.player.pos.x + self.camera.camera_rect.x
-        player_y = self.player.pos.y + self.camera.camera_rect.y
+        player_x = self.player.pos.x + self.camera.pos.x
+        player_y = self.player.pos.y + self.camera.pos.y
 
         pos = str(self.player.pos)
         # self.draw_text(pos, 22, RED, 100, 15)
@@ -434,10 +443,10 @@ class Game:
 
         # mob data
         for mob in self.mob_sprites:
-            x_pos = mob.pos.x + self.camera.camera_rect.x
-            y_pos = mob.pos.y + self.camera.camera_rect.y
+            x_pos = mob.pos.x + self.camera.pos.x
+            y_pos = mob.pos.y + self.camera.pos.y
 
-            draw_sprite_bar(self.screen, mob.pos.x - 50 + self.camera.camera_rect.x, mob.pos.y - 50 + self.camera.camera_rect.y, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
+            draw_sprite_bar(self.screen, mob.pos.x - 50 + self.camera.pos.x, mob.pos.y - 50 + self.camera.pos.y, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
             # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
 

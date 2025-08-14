@@ -28,10 +28,10 @@
         },
         "test.tmx": {
             "scale": 0.5,
-            "selectedLayer": 0,
+            "selectedLayer": 3,
             "viewCenter": {
-                "x": 768,
-                "y": 1158
+                "x": 722,
+                "y": 474
             }
         },
         "test.tmx#PickUps": {

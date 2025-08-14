@@ -208,13 +208,13 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
 
-        current_frame_index = int((self.timer // self.refresh_rate) % len(anim_reel))  # must be before self.timer updated for check_anim_end to work
+        self.current_frame_index = int((self.timer // self.refresh_rate) % len(anim_reel))  # must be before self.timer updated for check_anim_end to work
         self.timer += self.game.dt
-        self.ref_image = anim_reel[current_frame_index]
+        self.ref_image = anim_reel[self.current_frame_index]
         self.transform_image()
         self.damage_effect()
         # self.image.fill(RED)
-        return current_frame_index
+        # return current_frame_index
 
     def check_anim_end(self, anim_reel):
         """ check if animation will end & return to 1st frame on next game loop"""
@@ -224,8 +224,9 @@ class Mobile_sprite(pygame.sprite.Sprite):
 
     def draw(self):
 
-        self.current_frame_index = self.animate(self.current_animation)
-        self.game.screen.blit(self.image, self.game.camera.apply(self))
+        self.animate(self.current_animation)
+        offset_x, offset_y = self.game.camera.apply(self)
+        self.game.screen.blit(self.image, (int(offset_x), int(offset_y)))
 
 
 class Mine(Mobile_sprite):
@@ -601,7 +602,7 @@ class Player(Mobile_sprite):
                     missile = Player.weaponclasses[self.current_weapon](self.game, missile_startpos.x, missile_startpos.y, 'weapons', self.game.weapons_images, self.current_weapon)
                     self.game.all_sprites.add(missile)
                     self.ammo[self.current_weapon] -= 1
-                print(self.ammo[self.current_weapon])
+
 
     def collide_enemy(self):
 
@@ -685,8 +686,10 @@ class Player(Mobile_sprite):
 
         # self.pos += self.vel
         # update player animation reel
+        self.vel = vec(8, 0)
         self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
+        print(self.rect.topleft)
 
 
 class Enemy(Mobile_sprite):

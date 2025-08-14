@@ -142,7 +142,7 @@
 </data>
  </layer>
  <objectgroup id="9" name="mobile_sprites">
-  <object id="11" name="Player" x="184" y="322" width="46" height="92"/>
+  <object id="11" name="Player" x="322" y="1610" width="46" height="92"/>
   <object id="51" name="Mine" x="1932" y="276" width="46" height="46"/>
   <object id="60" name="Mine" x="2070" y="1104" width="46" height="46"/>
   <object id="71" name="Mine" x="2530" y="1242" width="46" height="46"/>
