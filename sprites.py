@@ -78,8 +78,10 @@ class Mobile_sprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = self.pos
         self.setup_hitrect()
-        self.get_gridref()  # current grid position
-        self.assign_sprite_to_grid()
+        self.gridref = self.get_gridref()  # current grid position
+        self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to map_layer at grid (spritegroup) position
+        # self.assign_sprite_to_grid()
+        self.transfer = False
 
         self.ref_image = self.image.copy()  # for mob image transformation (flip/ rotate)
         self.radius = 0.75 * ((self.rect.width+self.rect.height)/4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
@@ -108,7 +110,17 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def get_gridref(self):
 
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
-        self.gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
+        gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
+
+        return gridref
+
+    def flag_transfer_sprite(self):
+        """ If sprite has moved to a new grid flag sprite for update in main game update"""
+        gridref = self.get_gridref()
+        if gridref != self.gridref:
+            self.transfer = True
+            self.next_grid = gridref
+            return True
 
     def assign_sprite_to_grid(self):
         """ Remove sprite from previous grids, and reassign sprite to corresponding grids (sprite groups) in game class grid squares dictionary"""
@@ -149,7 +161,7 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def collide_platforms(self, axis):  # [0, 1] for either [x, y] axis
 
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]  # update rect with new position
-        self.rect.center = self.hitrect.center  # update image rect position in turn
+        # self.rect.center = self.hitrect.center  # update image rect position in turn
 
         totalhits = self.collide_sprites('platforms')
 
@@ -161,7 +173,7 @@ class Mobile_sprite(pygame.sprite.Sprite):
             self.pos[axis] -= overlap  # reset position so no longer colliding
             self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # up
             # date rect post collision
-            self.rect.center = self.hitrect.center
+            # self.rect.center = self.hitrect.center
             return True
 
     def atMapBoundaries(self):
@@ -276,7 +288,7 @@ class Mine(Mobile_sprite):
 
     def update(self):
 
-        self.assign_sprite_to_grid()
+        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
         if self.active:
@@ -316,10 +328,10 @@ class Harpoon(Mobile_sprite):
 
     def update(self):
 
-        self.rect.center = self.pos
+        # self.rect.center = self.pos
         self.hitrect.center = self.rect.center + self.HRoffset
 
-        self.assign_sprite_to_grid()
+        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
         # collide walls
@@ -406,10 +418,10 @@ class Torpedo(Harpoon):
 
     def update(self):
 
-        self.rect.center = self.pos
+        # self.rect.center = self.pos
         self.hitrect.center = self.rect.center + self.HRoffset
 
-        self.assign_sprite_to_grid()
+        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
         # collide walls
@@ -657,7 +669,7 @@ class Player(Mobile_sprite):
         self.rot_speed = 0
 
         # Check platform collision and update rect
-        self.assign_sprite_to_grid()
+        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()  # return list of current and adjacent gridrefs
 
         self.collide_platforms(0)  # check horizontal collision
@@ -685,11 +697,12 @@ class Player(Mobile_sprite):
         self.death()
 
         # self.pos += self.vel
-        # update player animation reel
         self.vel = vec(8, 0)
+        # update player animation reel
         self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
-        print(self.rect.topleft)
+
+        # check if sprite will move to new grid on next update
 
 
 class Enemy(Mobile_sprite):
@@ -812,7 +825,7 @@ class Enemy(Mobile_sprite):
 
     def update(self):
 
-        self.assign_sprite_to_grid()
+        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
         # collide walls

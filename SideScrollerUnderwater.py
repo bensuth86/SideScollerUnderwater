@@ -167,6 +167,20 @@ class TiledMap:
 
         return map_layers
 
+    def get_active_grids(self):
+        """ Return list of gridrefs currently on screen and adjacent to screen boundaries - for calling grid.update"""
+        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + self.gridwidth]  # (left boundary, right boundary)
+        x_bound[0], x_bound[1] = max(x_bound[0], 0), min(x_bound[1], self.width)  # clamp to within map boundaries
+        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + self.gridheight]  # (top boundary, bottom boundary)
+        y_bound[0], y_bound[1] = max(y_bound[0], 0), min(y_bound[1], self.height)  # clamp to within map boundaries
+
+        left_col, right_col = int(x_bound[0] // self.gridwidth), int(x_bound[1] // self.gridwidth)
+        top_row, bottom_row = int(y_bound[0] // self.gridheight), int(y_bound[1] // self.gridheight)
+        active_cols = self.x_coords[left_col : right_col]
+        active_rows = self.y_coords[top_row : bottom_row]
+        active_gridrefs = [f"{col}{row}" for col in active_cols for row in active_rows]
+        return active_gridrefs
+
     def read_tiled_data(self, surface):
         """ Generate platform tiles and single map surf image for drawing """
         ti = self.tmxdata.get_tile_image_by_gid
@@ -217,7 +231,8 @@ class Game:
         pygame.init()
         pygame.mixer.init()
         pygame.display.set_caption(TITLE)
-        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
+        self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), flags=pygame.SCALED, vsync=1)
+        # self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
         self.camera = Camera(self)
 
         self.clock = pygame.time.Clock()
@@ -290,6 +305,7 @@ class Game:
         while self.playing:
             # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
             self.clock.tick(FPS)
+            print(self.clock.get_fps())
             self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
             self.elapsed_time += self.dt  # update elapsed time for current loop
 
@@ -323,21 +339,39 @@ class Game:
                     self.playing = False
                     self.running = False
 
+    def assign_sprites_to_grid(self, sprites_to_transfer):
+
+        if bool(sprites_to_transfer):
+            for sprite in sprites_to_transfer:
+                self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
+                self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
+                sprite.gridref = sprite.next_grid
+
     def update(self):
         """Game Loop - Update"""
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
         #     self.camera.update(mob)
         # update sprites by grid
-        # TODO only update grids currently on screen plus grids adjacent to to screen edges
 
+        # TODO only update grids currently on screen plus grids adjacent to to screen edges
+        active_gridrefs = self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
+        sprites_to_transfer = []  # sprites to be moved to new grid for current update
+
+        # call mobile sprite update fnc then update new rect position
         for map_layer in self.map.mobile_layers:
             grids = self.map.layers[map_layer]
-            for grid in grids.values():
-                grid.update()  # call update function for mobile sprites within current grid
-                for sprite in grid.spritedict:
+            for ref in active_gridrefs:
+                grids[ref].update()
+                for sprite in grids[ref]:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
+                    sprite.rect.center = (sprite.pos.x, sprite.pos.y)
+                    if sprite.flag_transfer_sprite():
+                        sprites_to_transfer.append(sprite)
 
+                    # print(sprites_to_transfer)
+
+        self.assign_sprites_to_grid(sprites_to_transfer)
         # update hold_sprites
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
@@ -351,10 +385,10 @@ class Game:
         # Kill sprites in hold_sprites group if they're off screen
         for sprite in self.hold_sprites:
 
-            if self.player.pos.x - sprite.rect.right > SCREENWIDTH * 5/8 or sprite.rect.left - self.player.pos.x > SCREENWIDTH * 5/8:
+            if self.player.pos.x - sprite.rect.right > (SCREENWIDTH + self.map.tilesize) or sprite.rect.left - self.player.pos.x > (SCREENWIDTH + self.map.tilesize):
                 sprite.kill()
 
-            if self.player.pos.y - sprite.rect.bottom > SCREENHEIGHT * 5/8 or sprite.rect.top - self.player.pos.y > SCREENHEIGHT * 5/8:
+            if self.player.pos.y - sprite.rect.bottom > (SCREENHEIGHT + self.map.tilesize) or sprite.rect.top - self.player.pos.y > (SCREENHEIGHT + self.map.tilesize):
                 sprite.kill()
 
     def draw_text(self, text, size, colour, x, y):
@@ -375,8 +409,8 @@ class Game:
         for grid in self.map.layers['empty'].values():
             x1 = grid.x1
             y1 = grid.y1
-            x1 = x1 + self.camera.pos.x  # update with camera movement
-            y1 = y1 + self.camera.pos.y
+            x1 = x1 - self.camera.pos.x  # update with camera movement
+            y1 = y1 - self.camera.pos.y
             pygame.draw.rect(self.screen, WHITE, [x1, y1, self.map.gridwidth, self.map.gridheight], 1)
             text = font.render(grid.coordinates, True, GREEN, BLUE)
             textRect = text.get_rect()
@@ -389,7 +423,7 @@ class Game:
         # self.screen.blit(self.background, (self.camera.camera_rect.x, self.camera.camera_rect.y))  # draw background
         self.screen.fill(DEEPBLUE)
         offset_x, offset_y = self.camera.apply_rect(self.map_rect)
-        # self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
+        self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
         # blit all map sprites, content
         for sprite in self.all_sprites:
 
@@ -406,7 +440,6 @@ class Game:
                     if sprite.active:
                         self.draw_text(str(int(sprite.countdown+1)), 50, RED, sprite.rect.centerx - self.camera.pos.x, sprite.rect.centery - self.camera.pos.y)
 
-        pygame.display.flip()  # *after* drawing everything, flip the display
         # TESTING ONLY #
 
         # self.draw_grid()
@@ -417,7 +450,7 @@ class Game:
         # camera.rect offset
         # camera_position = (self.camera.pos.x, self.camera.pos.y)
         camera_position = str((round(self.camera.pos.x, 1), round(self.camera.pos.y, 1)))
-        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
+        self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
         player_x = self.player.pos.x + self.camera.pos.x
