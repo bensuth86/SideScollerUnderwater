@@ -29,6 +29,16 @@ TARGET_FPS = 60  # targer frame rate- used for frame rate independence
 # Background
 BACKGROUND = path.join(repos, "Images", "UnderwaterBackground.png")
 
+# sounds
+INTRO_MUSIC = 'the_deep_below.mp3'
+BG_MUSIC = 'thalassophobia.mp3'
+EFFECTS_SOUNDS = {'torpedo_explode' : 'explosion04.wav',
+                  'mine_explode': 'hjm-big_explosion_3.wav',
+                  'mob_hit' : 'punch_1b.wav'}
+
+WEAPON_SHOOT_SOUNDS = {'harpoon' : 'piercing-1b.wav',
+                       'torpedo' : 'bang.mp3'}
+
 # Map keys
 # PLATFORMKEY = {'8': 'roof',
 #                '2': 'floor',

@@ -32,7 +32,7 @@ def draw_sprite_bar(surf, x, y, pct, c1, c2, c3):
 
 
 class Camera:
-    # TODO Fix camera lag for smooth motion
+
     # TODO Parallax scrolling; objects, map layers move at different rates rel to camera scrolling speed
     def __init__(self, game):
 
@@ -169,9 +169,9 @@ class TiledMap:
 
     def get_active_grids(self):
         """ Return list of gridrefs currently on screen and adjacent to screen boundaries - for calling grid.update"""
-        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + self.gridwidth]  # (left boundary, right boundary)
+        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + 2*self.gridwidth]  # (left boundary, right boundary)
         x_bound[0], x_bound[1] = max(x_bound[0], 0), min(x_bound[1], self.width)  # clamp to within map boundaries
-        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + self.gridheight]  # (top boundary, bottom boundary)
+        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + 2*self.gridheight]  # (top boundary, bottom boundary)
         y_bound[0], y_bound[1] = max(y_bound[0], 0), min(y_bound[1], self.height)  # clamp to within map boundaries
 
         left_col, right_col = int(x_bound[0] // self.gridwidth), int(x_bound[1] // self.gridwidth)
@@ -268,6 +268,21 @@ class Game:
         self.mob_images = self.mob_spritesheet.get_sprite_images()
         self.weapons_images = self.weapons_spritesheet.get_sprite_images()
 
+        # load sounds
+        music_folder = path.join(repos, 'sounds', 'music')
+        effects_folder = path.join(repos, 'sounds', 'effects')
+        weapon_shoot_folder = path.join(repos, 'sounds', 'weapon_shoot')
+
+        pygame.mixer.music.load(path.join(music_folder, BG_MUSIC))
+
+        self.effects_sounds = {}
+        for type in EFFECTS_SOUNDS:
+            self.effects_sounds[type] = pygame.mixer.Sound(path.join(effects_folder, EFFECTS_SOUNDS[type]))
+
+        self.weapon_shoot_sounds = {}
+        for type in WEAPON_SHOOT_SOUNDS:
+            self.weapon_shoot_sounds[type] = pygame.mixer.Sound(path.join(weapon_shoot_folder, WEAPON_SHOOT_SOUNDS[type]))
+
         self.spawnpoints = []  # locations adjacent platforms for spawning background props, pickups, effects etc
 
     def new(self):
@@ -302,10 +317,12 @@ class Game:
     def run(self):
         """ Main game loop"""
         self.playing = True
+        pygame.mixer.music.play(loops=-1)
+
         while self.playing:
             # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
-            self.clock.tick(FPS)
-            print(self.clock.get_fps())
+            self.clock.tick_busy_loop(FPS)
+            # print(self.clock.get_fps())
             self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
             self.elapsed_time += self.dt  # update elapsed time for current loop
 
@@ -366,12 +383,13 @@ class Game:
                 for sprite in grids[ref]:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
                     sprite.rect.center = (sprite.pos.x, sprite.pos.y)
+                    # reference sprites to be transferred to new grid
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
 
                     # print(sprites_to_transfer)
 
-        self.assign_sprites_to_grid(sprites_to_transfer)
+        self.assign_sprites_to_grid(sprites_to_transfer)  # transfer flagged sprites to new grid
         # update hold_sprites
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop

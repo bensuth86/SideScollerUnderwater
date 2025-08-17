@@ -143,9 +143,9 @@ class Mobile_sprite(pygame.sprite.Sprite):
                 gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
                 self.adjacent_grids.append(gridref)
 
-    def collide_rect(self, rect, platform):
+    def collide_rect(self, sprite, platform):
 
-        return rect.colliderect(platform.rect)
+        return sprite.hitrect.colliderect(platform.rect)
 
     def collide_sprites(self, map_layer):
         """ Return list of collided sprites for current & adj grids within specified maplayer"""
@@ -153,7 +153,7 @@ class Mobile_sprite(pygame.sprite.Sprite):
         for ref in self.adjacent_grids:
 
             grid = self.game.map.layers[map_layer][ref]  # return sprite group from grid_squares dictionary
-            hits = pygame.sprite.spritecollide(self.hitrect, grid, False, self.collide_rect)
+            hits = pygame.sprite.spritecollide(self, grid, False, self.collide_rect)
             totalhits += hits
 
         return totalhits
@@ -277,6 +277,8 @@ class Mine(Mobile_sprite):
         # update animation reel to explosion animation
         self.change_action(self.game.effects_images, 'explosion4x4')  # change self.actionvar to new action
 
+        self.game.effects_sounds['mine_explode'].play()
+
     def inflict_damage(self, maplayerkey, v_const):
 
         for ref in self.adjacent_grids:
@@ -325,6 +327,7 @@ class Harpoon(Mobile_sprite):
             if hits:
                 hits[0].take_damage(10)
                 self.kill()
+                self.game.effects_sounds['mob_hit'].play()
 
     def update(self):
 
@@ -366,6 +369,17 @@ class Torpedo(Harpoon):
 
         self.vel = game.player.direction.normalize() * Torpedo.runspeed
 
+    def collide_walls(self):
+
+        if self.collide_sprites('platforms'):
+            self.pos.x += sign(self.vel.x) * 70  # move explosion closer to the platform
+            self.pos.y += sign(self.vel.y) * 70  # ditto
+            self.hitrect.center = self.pos
+
+            self.vel = vec(0, -2)  # explosion rises
+
+            self.explode()
+
     def collide_enemy(self):
 
         for ref in self.adjacent_grids:
@@ -400,15 +414,16 @@ class Torpedo(Harpoon):
 
         # update animation reel to explosion animation
         self.change_action(self.game.effects_images, 'explosion')  # change self.actionvar to new action
+        self.game.effects_sounds['torpedo_explode'].play()
 
     def inflict_damage(self, maplayerkey, v_const):
 
         for ref in self.adjacent_grids:
             for sprite in self.game.map.layers[maplayerkey][ref]:
 
-                displacement = vec(sprite.rect.center) - vec(self.rect.center)
+                displacement = vec(sprite.hitrect.center) - vec(self.rect.center)
                 damage = self.damage_constant / displacement.length()**2
-                sprite.vel = displacement.normalize()* (v_const / displacement.length()) # explosion veloctity in opposite direction to displacement.  Speed proportional to 1/ distance
+                sprite.vel = displacement.normalize() * (v_const / displacement.length())  # explosion veloctity in opposite direction to displacement.  Speed proportional to 1/ distance
                 sprite.vel += self.direction * -5  # Add velocity constant to increase minimum explosion affect
                 sprite.take_damage(damage)
 
@@ -425,14 +440,7 @@ class Torpedo(Harpoon):
         self.get_adjacent_grids()
 
         # collide walls
-        if self.collide_sprites('platforms'):
-            self.pos.x += sign(self.vel.x) * 70  # move explosion closer to the platform
-            self.pos.y += sign(self.vel.y) * 70  # ditto
-            self.hitrect.center = self.pos
-
-            self.vel = vec(0, -2)  # explosion rises
-
-            self.explode()
+        self.collide_walls()
         if any([self.collide_mine(), self.collide_enemy()]):
             self.explode()
 
@@ -498,11 +506,11 @@ class Player(Mobile_sprite):
         self.dead = False
         self.current_weapon = 'harpoon'  # Default weaponclassed key
         self.weaponstate = {'harpoon': True,
-                            'torpedo': False,
+                            'torpedo': True,
                             'plasmagun': False}
 
         self.ammo = {'harpoon': 200,
-                     'torpedo': 4}
+                     'torpedo': 50}
 
     def apply_clamps(self):
 
@@ -614,7 +622,7 @@ class Player(Mobile_sprite):
                     missile = Player.weaponclasses[self.current_weapon](self.game, missile_startpos.x, missile_startpos.y, 'weapons', self.game.weapons_images, self.current_weapon)
                     self.game.all_sprites.add(missile)
                     self.ammo[self.current_weapon] -= 1
-
+                    self.game.weapon_shoot_sounds[self.current_weapon].play()
 
     def collide_enemy(self):
 
@@ -697,7 +705,7 @@ class Player(Mobile_sprite):
         self.death()
 
         # self.pos += self.vel
-        self.vel = vec(8, 0)
+        # self.vel = vec(8, 0)
         # update player animation reel
         self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
@@ -835,7 +843,7 @@ class Enemy(Mobile_sprite):
             self.vel.y *= -1 / 2  # bounce off walls
 
         self.idle_swim(self.__class__.territory_rad)
-        if (self.game.player.pos - self.pos).length() < self.chase_player_rad:
+        if (self.game.player.pos - self.pos).length_squared() < self.chase_player_rad**2:
             self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
         adjust_target = self.target_error()  # add a % error to the target which switches between +/- error every second for less predictable mob movement
         self.get_target_vector(adjust_target)  # find new target vector
