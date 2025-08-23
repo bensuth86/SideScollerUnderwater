@@ -1,5 +1,4 @@
 from os import path
-from helpers.read_spritedata import *
 
 # define colors
 WHITE = (255, 255, 255)
@@ -17,10 +16,8 @@ repos = r"C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwate
 TITLE = "Animate player"
 
 # all screen dimensions, grids tiles multiples of 4
-# TILESIZE = 46  # length, width in pixels
 SCREENWIDTH = 1472  # screen width in tiles (must be divisible by 2)
 SCREENHEIGHT = 736  # screen height in tiles
-# GRIDWIDTH, GRIDHEIGHT = 5*TILESIZE, 5*TILESIZE  # map divided into grids 4 X 4 TILES
 
 FPS = 60  # frames per second
 TARGET_FPS = 60  # targer frame rate- used for frame rate independence
@@ -32,22 +29,11 @@ BACKGROUND = path.join(repos, "Images", "UnderwaterBackground.png")
 # sounds
 INTRO_MUSIC = 'the_deep_below.mp3'
 BG_MUSIC = 'thalassophobia.mp3'
-EFFECTS_SOUNDS = {'torpedo_explode' : 'explosion04.wav',
-                  'mine_explode': 'hjm-big_explosion_3.wav',
-                  'mob_hit' : 'punch_1b.wav'}
+EFFECTS_SOUNDS = {'torpedo_explode': ['explosion04.wav'],
+                  'mine_explode': ['hjm-big_explosion_3.wav'],
+                  'mob_hit': ['punch_1b.wav'],
+                  'mob_death': ['mob_death1.wav', 'mob_death2.wav']}
 
-WEAPON_SHOOT_SOUNDS = {'harpoon' : 'piercing-1b.wav',
-                       'torpedo' : 'bang.mp3'}
-
-# Map keys
-# PLATFORMKEY = {'8': 'roof',
-#                '2': 'floor',
-#                '4': 'wallRight',
-#                '6': 'wallLeft',
-#                '7': 'topRightCorner',
-#                '9': 'topLeftCorner',
-#                '1': 'bottomLeftCorner',
-#                '3': 'bottomRightCorner',
-#                '5': 'tunnelLeft',
-#                '0': 'tunnelRight'
-#                }
+WEAPON_SHOOT_SOUNDS = {'harpoon': ['piercing-1b.wav'],
+                       'torpedo': ['bang.mp3'],
+                       'gun_reload': ['gun_reload.mp3']}

@@ -2,11 +2,8 @@
 
 import pygame
 import pytmx
-import random
 from string import ascii_uppercase
 import time
-# from settings import *
-# from helpers.spritesheet_functions import *
 from helpers.transform_images import *
 from sprites import *
 
@@ -53,13 +50,13 @@ class Camera:
         y_offset = min(self.game.map.height - SCREENHEIGHT, y_offset)  # bottom map edge
 
         # LERP current camera position toward target position (adjust between 0.05 - 0.2 for best results
-        self.pos.x += (x_offset - self.pos.x ) * lerp_factor
-        self.pos.y += (y_offset - self.pos.y ) * lerp_factor
+        self.pos.x += (x_offset - self.pos.x) * lerp_factor
+        self.pos.y += (y_offset - self.pos.y) * lerp_factor
 
     def parallax_scrolling(self, surface, background_image):
         """ Entity.rect moves by a fraction of camera offset e.g. 1/2 self.rect.x, 1/2 self.rect.y"""
         # Drawing background layer at 50% scroll speed
-        bg_offset = self.camera.pos * 0.5
+        bg_offset = self.pos * 0.5
         surface.blit(background_image, (-bg_offset.x, -bg_offset.y))
 
     def apply(self, sprite):
@@ -76,22 +73,6 @@ class Camera:
         offset_x = rect.x - self.pos.x
         offset_y = rect.y - self.pos.y
         return offset_x, offset_y
-
-
-class TextMap:
-    """Shelved """
-    """ Read map data from .txt file; platform tiles, mobs"""
-    def __init__(self, filename):
-        self.data = []
-        with open(filename, 'rt') as f:
-            for line in f:
-                line = line.replace("\t", '')  # remove tab scape characters
-                self.data.append(line.strip())  # .strip prevents invisible new line characters being read from text file
-
-        self.width = len(self.data[0]) * TILESIZE  # pixel width of the map
-        self.height = len(self.data) * TILESIZE
-        self.LHS, self.RHS = TILESIZE, self.width - TILESIZE
-        self.top, self.btm = TILESIZE, self.height - TILESIZE
 
 
 class Grid(pygame.sprite.Group):
@@ -121,8 +102,8 @@ class TiledMap:
         self.LHS, self.RHS = self.tilesize, self.width - self.tilesize
         self.top, self.btm = self.tilesize, self.height - self.tilesize
 
-        self.gridwidth = 8 * self.tilesize  # map divided into grids 5 X 5 TILES
-        self.gridheight = 8 * self.tilesize
+        self.gridwidth = 8 * self.tilesize  # must be divisible by map width
+        self.gridheight = 8 * self.tilesize  # ditto map height
 
         # grid square coordinates (A1, A2, A3 ... )
         self.setup_grid_refs()
@@ -176,10 +157,9 @@ class TiledMap:
 
         left_col, right_col = int(x_bound[0] // self.gridwidth), int(x_bound[1] // self.gridwidth)
         top_row, bottom_row = int(y_bound[0] // self.gridheight), int(y_bound[1] // self.gridheight)
-        active_cols = self.x_coords[left_col : right_col]
-        active_rows = self.y_coords[top_row : bottom_row]
-        active_gridrefs = [f"{col}{row}" for col in active_cols for row in active_rows]
-        return active_gridrefs
+        active_cols = self.x_coords[left_col: right_col]
+        active_rows = self.y_coords[top_row: bottom_row]
+        self.active_gridrefs = [f"{col}{row}" for col in active_cols for row in active_rows]
 
     def read_tiled_data(self, surface):
         """ Generate platform tiles and single map surf image for drawing """
@@ -218,7 +198,7 @@ class Game:
                      "flashlight": (lambda player: player.flashlight is True),
                      "respawnpoint": (lambda player: player.respawm is vec(46, 46)),
                      "baitdecoy": (lambda player: player.baitdecoy + 5)
-                    }
+                     }
 
     MOBCLASSES = {
         'dartfish': Dartfish,
@@ -275,13 +255,14 @@ class Game:
 
         pygame.mixer.music.load(path.join(music_folder, BG_MUSIC))
 
-        self.effects_sounds = {}
-        for type in EFFECTS_SOUNDS:
-            self.effects_sounds[type] = pygame.mixer.Sound(path.join(effects_folder, EFFECTS_SOUNDS[type]))
+        self.effects_sounds = {key: [pygame.mixer.Sound(effects_folder + '\\' + snd) for snd in EFFECTS_SOUNDS[key]] for key in EFFECTS_SOUNDS}
+        [snd.set_volume(0.3) for snd in self.effects_sounds['torpedo_explode']]
+        [snd.set_volume(1) for snd in self.effects_sounds['mine_explode']]
+        [snd.set_volume(0.1) for snd in self.effects_sounds['mob_hit']]
 
-        self.weapon_shoot_sounds = {}
-        for type in WEAPON_SHOOT_SOUNDS:
-            self.weapon_shoot_sounds[type] = pygame.mixer.Sound(path.join(weapon_shoot_folder, WEAPON_SHOOT_SOUNDS[type]))
+        self.weapon_shoot_sounds = {key: [pygame.mixer.Sound(weapon_shoot_folder + '\\' + snd) for snd in WEAPON_SHOOT_SOUNDS[key]] for key in WEAPON_SHOOT_SOUNDS}
+        [snd.set_volume(0.3) for snd in self.weapon_shoot_sounds['harpoon']]
+        [snd.set_volume(0.2) for snd in self.weapon_shoot_sounds['torpedo']]
 
         self.spawnpoints = []  # locations adjacent platforms for spawning background props, pickups, effects etc
 
@@ -292,26 +273,40 @@ class Game:
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted- group for visual effects only
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
-        # generate mobile sprites from TiledMap object layers
+        # generate static sprites from TiledMap object layers
         for pickup in self.map.tmxdata.layernames['pickups']:
-
             pickup = Pick_up(self, pickup.x, pickup.y, pickup.image, 'pickups', pickup.name)
             self.all_sprites.add(pickup)
 
-        for tile_object in self.map.tmxdata.objects:
+        # generate mobile sprites from TiledMap object layers
+        for player in self.map.tmxdata.layernames['players']:
+            x, y = player.x + player.width/2, player.y + player.height/2
+            self.player = Player(self, x, y, 'players', self.player_images, 'player_idle')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
+            self.all_sprites.add(self.player)
 
-            if tile_object.name == 'Player':
-                self.player = Player(self, tile_object.x, tile_object.y,  'players', self.player_images, 'player_idle')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
-                self.all_sprites.add(self.player)
-            if tile_object.name == 'Enemy':
-                mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
-                # TODO distributed random selection e.g. every 1 in 10 mobs select Daddyfish, 1 in 3 select Dartfish etc
-                # img = self.mob_images[mobkey][0]
-                mob = Game.MOBCLASSES[mobkey](self, tile_object.x, tile_object.y, 'enemies', self.mob_images, mobkey)
-                self.all_sprites.add(mob)
-                self.mob_sprites.add(mob)  # TESTING ONLY
-            if tile_object.name == 'Mine':
-                mine = Mine(self, tile_object.x, tile_object.y, 'weapons', self.weapons_images, 'mine')
+        for i, enemy in enumerate(self.map.tmxdata.layernames['enemies']):
+            x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
+            if enemy.name == 'Enemy':  # if mob child class is not specified
+                # mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
+                if i % 3 == 0:  # every 3rd mob generated
+                    mobkey = 'spinefish'
+                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
+                elif i % 10 == 0:  # every 10th mob generated
+                    mobkey = 'daddyfish'
+                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
+                else:
+                    mobkey = 'dartfish'
+                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
+            else:
+                mobkey = enemy.name
+                mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
+            self.all_sprites.add(mob)
+            self.mob_sprites.add(mob)  # TESTING ONLY
+
+        for weapon in self.map.tmxdata.layernames['weapons']:
+            if weapon.name == 'Mine':
+                x, y = weapon.x + weapon.width / 2, weapon.y + weapon.height / 2
+                mine = Mine(self, x, y, 'weapons', self.weapons_images, 'mine')
                 self.all_sprites.add(mine)
 
     def run(self):
@@ -342,7 +337,6 @@ class Game:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if 4 <= event.button <= 5:  # middle mouse scroll
                     self.player.choose_weapon_mousewheel(event)
-
             if event.type == pygame.KEYDOWN:
                 if pygame.K_1 <= event.key <= pygame.K_9:
                     weapon_index = int(event.unicode)
@@ -358,27 +352,30 @@ class Game:
 
     def assign_sprites_to_grid(self, sprites_to_transfer):
 
-        if bool(sprites_to_transfer):
+        if sprites_to_transfer:
             for sprite in sprites_to_transfer:
                 self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
                 self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
                 sprite.gridref = sprite.next_grid
+                # kill missile sprites not in active sprites list
+                if sprite.gridref not in self.map.active_gridrefs:
+                    if isinstance(sprite, Harpoon):  # if missile sprite
+                        sprite.kill()
 
     def update(self):
         """Game Loop - Update"""
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
         #     self.camera.update(mob)
-        # update sprites by grid
 
-        # TODO only update grids currently on screen plus grids adjacent to to screen edges
-        active_gridrefs = self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
+        # update sprites by grid
+        self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
         sprites_to_transfer = []  # sprites to be moved to new grid for current update
 
         # call mobile sprite update fnc then update new rect position
         for map_layer in self.map.mobile_layers:
             grids = self.map.layers[map_layer]
-            for ref in active_gridrefs:
+            for ref in self.map.active_gridrefs:
                 grids[ref].update()
                 for sprite in grids[ref]:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
@@ -390,6 +387,7 @@ class Game:
                     # print(sprites_to_transfer)
 
         self.assign_sprites_to_grid(sprites_to_transfer)  # transfer flagged sprites to new grid
+
         # update hold_sprites
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # velocity reduced each loop
@@ -399,15 +397,15 @@ class Game:
             if sprite.check_anim_end(sprite.current_animation):
                 sprite.kill()
 
-        # TODO - limit holding group size
         # Kill sprites in hold_sprites group if they're off screen
         for sprite in self.hold_sprites:
-
-            if self.player.pos.x - sprite.rect.right > (SCREENWIDTH + self.map.tilesize) or sprite.rect.left - self.player.pos.x > (SCREENWIDTH + self.map.tilesize):
+            if sprite.gridref not in self.map.active_gridrefs:
                 sprite.kill()
 
-            if self.player.pos.y - sprite.rect.bottom > (SCREENHEIGHT + self.map.tilesize) or sprite.rect.top - self.player.pos.y > (SCREENHEIGHT + self.map.tilesize):
-                sprite.kill()
+        # limit holding group size
+        if len(self.hold_sprites) > 50:
+            if self.hold_sprites:
+                list(self.hold_sprites)[0].kill()
 
     def draw_text(self, text, size, colour, x, y):
 
@@ -421,7 +419,6 @@ class Game:
     def draw_grid(self):  # (rows,columns)
         # Display grid squares for testing #
         font = pygame.font.Font('freesansbold.ttf', 16)
-        text = font.render('GeeksForGeeks', True, GREEN, BLUE)
 
         # for grid_ref, sptgrp in self.grid_squares.items():
         for grid in self.map.layers['empty'].values():
@@ -460,7 +457,7 @@ class Game:
 
         # TESTING ONLY #
 
-        # self.draw_grid()
+        self.draw_grid()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
