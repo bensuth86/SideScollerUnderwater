@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="40" tilewidth="46" tileheight="46" infinite="0" nextlayerid="18" nextobjectid="187">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="40" tilewidth="46" tileheight="46" infinite="0" nextlayerid="18" nextobjectid="240">
  <tileset firstgid="1" name="platforms" tilewidth="46" tileheight="46" tilecount="80" columns="8">
   <image source="../Images/platforms.png" trans="000000" width="368" height="460"/>
  </tileset>
@@ -146,34 +146,39 @@
   <object id="151" x="2024" y="644"/>
  </objectgroup>
  <objectgroup id="16" name="players">
-  <object id="175" name="Player1" x="736" y="322" width="46" height="92"/>
+  <object id="175" name="Player1" x="3220" y="1472" width="46" height="92"/>
  </objectgroup>
- <objectgroup id="17" name="weapons">
-  <object id="179" name="Mine" x="598" y="1058" width="92" height="92"/>
-  <object id="180" name="Mine" x="2024" y="1058" width="92" height="92"/>
-  <object id="181" name="Mine" x="2484" y="1196" width="92" height="92"/>
+ <objectgroup id="17" name="weapons" locked="1">
+  <object id="179" name="Mine" x="1886" y="46" width="92" height="92"/>
  </objectgroup>
  <objectgroup id="15" name="enemies">
-  <object id="163" name="Enemy" x="276" y="690" width="46" height="46"/>
-  <object id="164" name="Enemy" x="460" y="828" width="46" height="46"/>
-  <object id="165" name="Enemy" x="368" y="966" width="46" height="46"/>
-  <object id="166" name="Enemy" x="506" y="1150" width="46" height="46"/>
-  <object id="167" name="Enemy" x="598" y="966" width="46" height="46"/>
-  <object id="168" name="Enemy" x="874" y="782" width="46" height="46"/>
-  <object id="169" name="Enemy" x="966" y="966" width="46" height="46"/>
-  <object id="170" name="Enemy" x="920" y="1058" width="46" height="46"/>
-  <object id="171" name="Enemy" x="828" y="1288" width="46" height="46"/>
-  <object id="172" name="Enemy" x="1012" y="1472" width="46" height="46"/>
-  <object id="173" name="Enemy" x="1196" y="1242" width="46" height="46"/>
-  <object id="174" name="Enemy" x="1012" y="1196" width="46" height="46"/>
-  <object id="182" name="daddyfish" x="2806" y="1058" width="46" height="46"/>
-  <object id="185" name="daddyfish" x="2852" y="1242" width="46" height="46"/>
-  <object id="186" name="daddyfish" x="2806" y="1380" width="46" height="46"/>
+  <object id="203" name="daddyfish" x="2438" y="1150" width="46" height="46"/>
+  <object id="221" name="Enemy" x="414" y="920" width="46" height="46"/>
+  <object id="222" name="Enemy" x="506" y="736" width="46" height="46"/>
+  <object id="223" name="Enemy" x="506" y="598" width="46" height="46"/>
+  <object id="224" name="Enemy" x="276" y="690" width="46" height="46"/>
+  <object id="225" name="Enemy" x="322" y="920" width="46" height="46"/>
+  <object id="226" name="Enemy" x="598" y="1196" width="46" height="46"/>
+  <object id="227" name="Enemy" x="920" y="736" width="46" height="46"/>
+  <object id="228" name="Enemy" x="920" y="782" width="46" height="46"/>
+  <object id="229" name="Enemy" x="966" y="1058" width="46" height="46"/>
+  <object id="230" name="Enemy" x="828" y="1150" width="46" height="46"/>
+  <object id="231" name="Enemy" x="598" y="1288" width="46" height="46"/>
+  <object id="232" name="Enemy" x="414" y="1334" width="46" height="46"/>
+  <object id="233" name="Enemy" x="368" y="1012" width="46" height="46"/>
+  <object id="234" name="Enemy" x="506" y="1012" width="46" height="46"/>
+  <object id="235" name="Enemy" x="690" y="874" width="46" height="46"/>
+  <object id="236" name="Enemy" x="690" y="736" width="46" height="46"/>
+  <object id="237" name="Enemy" x="736" y="690" width="46" height="46"/>
+  <object id="238" name="Enemy" x="874" y="920" width="46" height="46"/>
+  <object id="239" name="Enemy" x="920" y="1196" width="46" height="46"/>
  </objectgroup>
  <objectgroup id="14" name="pickups">
   <object id="133" name="stamina" gid="199" x="1518" y="1012" width="92" height="92"/>
   <object id="134" name="medikit" gid="203" x="966" y="230" width="92" height="92"/>
   <object id="135" name="torpedolauncher" gid="205" x="736" y="414" width="92" height="92"/>
   <object id="137" name="torpedos" gid="204" x="1472" y="1794" width="92" height="92"/>
+  <object id="218" name="bubbleorb" gid="211" x="690" y="1012" width="92" height="92"/>
+  <object id="220" name="medikit" gid="203" x="3128" y="460" width="92" height="92"/>
  </objectgroup>
 </map>

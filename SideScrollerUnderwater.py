@@ -4,6 +4,9 @@ import pygame
 import pytmx
 from string import ascii_uppercase
 import time
+import colorsys
+
+
 from helpers.transform_images import *
 from sprites import *
 
@@ -37,7 +40,7 @@ class Camera:
         self.pos = pygame.Vector2(0, 0)  # float-based camera position
         self.game = game
 
-    def update(self, target, lerp_factor=0.1):
+    def update(self, target, lerp_factor=1):  # lerp of 0.1 preferref
 
         # update camera offset according to player's new position i.e. camera follows player
         x_offset = target.pos.x - (SCREENWIDTH / 2)
@@ -49,7 +52,7 @@ class Camera:
         x_offset = min(self.game.map.width - SCREENWIDTH, x_offset)  # right map edge
         y_offset = min(self.game.map.height - SCREENHEIGHT, y_offset)  # bottom map edge
 
-        # LERP current camera position toward target position (adjust between 0.05 - 0.2 for best results
+        # LERP current camera position toward target position (adjust between 0.05 - 0.2 for best results, 1 for no lerp- instantaneous snapping)
         self.pos.x += (x_offset - self.pos.x) * lerp_factor
         self.pos.y += (y_offset - self.pos.y) * lerp_factor
 
@@ -182,6 +185,86 @@ class TiledMap:
         return temp_surface
 
 
+class Mesh:
+    """ For testing: setup nodes at map tile corners stored as dictionaries.  For each node calculate anti_g vector (effect of platforms)
+    and store corresponding r, g, b variable ranging from blue to red hue for drawing to screen.
+    """
+    def __init__(self, game):
+
+        self.game = game
+        self.nodes = []  # mesh nodes colour coded for drawing to screen
+        for x in range(0, self.game.map.width, self.game.map.tilesize):
+            for y in range(0, self.game.map.height, self.game.map.tilesize):
+                node = self.generate_node(x, y)
+                self.nodes.append(node)
+
+    def generate_node(self, x, y):
+        """ Dictionary to store x, y, position, anti_g vector and corresponding colour"""
+        adjacent_grids = self.get_adjacent_grids(x, y)
+
+        # calculate anti_g vector
+        anti_g_vector = vec(0, 0)
+        for ref in adjacent_grids:
+            for ptf in self.game.map.layers['platforms'][ref]:
+                displacement = vec(ptf.rect.centerx, ptf.rect.centery) - vec(x, y)  # between mob and centre point of platform tile
+                anti_g = -displacement * (6 / displacement.length() ** 2)  # accelleration away from wall- inversly proportional to displacemnt squared
+                anti_g_vector += anti_g
+
+        rgb = self.get_colour(anti_g_vector.length(), 0, 1)
+
+        node = {'x_coord': x,
+                'y_coord': y,
+                'anti_g': anti_g_vector,
+                'colour': rgb}
+
+        return node
+
+    def get_adjacent_grids(self, x, y):
+
+        adjacent_grids = []
+        grid_col, grid_row = x // self.game.map.gridwidth, y // self.game.map.gridheight
+        # gridref = self.map.x_coords[grid_col] + self.map.y_coords[grid_row]
+
+        grids_left = max(grid_col - 1, 0)  # return index position for grids to the left
+        grids_right = min(grid_col + 1, len(self.game.map.x_coords) - 1)
+        grids_above = max(grid_row - 1, 0)
+        grids_below = min(grid_row + 1, len(self.game.map.y_coords) - 1)
+        for i in range(grids_left, grids_right + 1):
+            for j in range(grids_above, grids_below + 1):
+                gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
+                adjacent_grids.append(gridref)
+
+        return adjacent_grids
+
+    def get_colour(self, var, v_min, v_max):
+        """
+        Maps a value `v` in [v_min, v_max] to a rainbow color:
+        Blue → Green → Yellow → Red (hue 2/3 → 0).
+
+        Returns:
+            (R, G, B): Tuple of ints (0–255)
+        """
+        # Clamp and normalize to 0–1
+        v = max(min(var, v_max), v_min)
+        t = (v - v_min) / (v_max - v_min)
+
+        # Hue: 0.66 (blue) → 0.0 (red)
+        h = (1 - t) * 0.66  # linear interpolation: blue → red
+        s = 1.0  # full saturation
+        brightness = 1.0  # full brightness
+
+        r, g, b = colorsys.hsv_to_rgb(h, s, brightness)
+        return (int(r * 255), int(g * 255), int(b * 255))
+
+    def draw(self):
+
+        for node in self.nodes:
+            x1 = node['x_coord'] - self.game.camera.pos.x  # update with camera movement
+            y1 = node['y_coord'] - self.game.camera.pos.y
+
+            pygame.draw.circle(self.game.screen, node['colour'], (x1, y1), 2)
+
+
 class Game:
 
     PICKUP_CATGRY = {"stamina": (lambda player: setattr(player, 'stamina', player.stamina + 50)),
@@ -195,6 +278,7 @@ class Game:
                      "plasmagun": (lambda player: player.plasmagun is True),
                      "plasmaammo": (lambda player: player.plasmaammo + 200),
                      # "doorkey": (),
+                     "bubbleorb": (lambda player: setattr(player, 'hitpoints', player.hitpoints + 5)),
                      "flashlight": (lambda player: player.flashlight is True),
                      "respawnpoint": (lambda player: player.respawm is vec(46, 46)),
                      "baitdecoy": (lambda player: player.baitdecoy + 5)
@@ -288,10 +372,10 @@ class Game:
             x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
             if enemy.name == 'Enemy':  # if mob child class is not specified
                 # mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
-                if i % 3 == 0:  # every 3rd mob generated
+                if i+1 % 3 == 0:  # every 3rd mob generated
                     mobkey = 'spinefish'
                     mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
-                elif i % 10 == 0:  # every 10th mob generated
+                elif i+1 % 20 == 0:  # every 10th mob generated
                     mobkey = 'daddyfish'
                     mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
                 else:
@@ -309,10 +393,13 @@ class Game:
                 mine = Mine(self, x, y, 'weapons', self.weapons_images, 'mine')
                 self.all_sprites.add(mine)
 
+        # load Mesh TESTING ONLY
+        self.mesh = Mesh(self)
+
     def run(self):
         """ Main game loop"""
         self.playing = True
-        pygame.mixer.music.play(loops=-1)
+        # pygame.mixer.music.play(loops=-1)
 
         while self.playing:
             # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
@@ -379,7 +466,7 @@ class Game:
                 grids[ref].update()
                 for sprite in grids[ref]:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
-                    sprite.rect.center = (sprite.pos.x, sprite.pos.y)
+                    # sprite.rect.center = (sprite.pos.x, sprite.pos.y)
                     # reference sprites to be transferred to new grid
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
@@ -417,7 +504,7 @@ class Game:
         self.screen.blit(text_surface, text_rect)
 
     def draw_grid(self):  # (rows,columns)
-        # Display grid squares for testing #
+        """ Display grid squares TESTING ONLY"""
         font = pygame.font.Font('freesansbold.ttf', 16)
 
         # for grid_ref, sptgrp in self.grid_squares.items():
@@ -457,15 +544,16 @@ class Game:
 
         # TESTING ONLY #
 
-        self.draw_grid()
+        # self.draw_grid()
+        # self.mesh.draw()
 
         # current_grids = str(self.player.current_grids)
         # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
 
         # camera.rect offset
-        # camera_position = (self.camera.pos.x, self.camera.pos.y)
+
         camera_position = str((round(self.camera.pos.x, 1), round(self.camera.pos.y, 1)))
-        self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
+        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
         # player data
         player_x = self.player.pos.x + self.camera.pos.x
@@ -491,28 +579,30 @@ class Game:
 
         # mob data
         for mob in self.mob_sprites:
-            x_pos = mob.pos.x + self.camera.pos.x
-            y_pos = mob.pos.y + self.camera.pos.y
+            x_pos = mob.pos.x - self.camera.pos.x
+            y_pos = mob.pos.y - self.camera.pos.y
 
-            draw_sprite_bar(self.screen, mob.pos.x - 50 + self.camera.pos.x, mob.pos.y - 50 + self.camera.pos.y, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
+            # draw_sprite_bar(self.screen, x_pos - 50, y_pos - 50, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
             # pygame.draw.rect(self.screen, RED, mob.rect, 2)
-            # pygame.draw.rect(self.screen, WHITE, mob.avoidRect, 2)
+
+            anti_g = str((round(mob.anti_g.x, 3), round(mob.anti_g.y, 3)))
+            anti_g_size = str((round(mob.anti_g.length(), 3)))
+            # self.draw_text(anti_g_size, 22, RED, SCREENWIDTH / 2, SCREENHEIGHT - 15)
 
             # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
-            # pygame.draw.circle(self.screen, RED, (int(mob.target.x+self.camera.camera_rect.x), int(mob.target.y+self.camera.camera_rect.y)), 10, 1)  # draw target position
-            # pygame.draw.circle(self.screen, RED, (int(mob.pos.x + mob.target_vec.x), int(mob.pos.y + mob.target_vec.y)), 10, 1)
+            pygame.draw.circle(self.screen, RED, (int(mob.target.x - self.camera.pos.x), int(mob.target.y - self.camera.pos.y)), 10, 1)
             # pygame.draw.circle(self.screen, RED, (int(x_pos), int(y_pos)), 10, 1)
             vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
             speed = str(round(mob.vel.length(), 1))
+            # self.draw_text(speed, 22, GREEN, SCREENWIDTH / 2, SCREENHEIGHT - 35)
+
             # target_angle = str(round(mob.target_angle, 0))
 
-            # self.draw_text(vel, 22, RED, SCREENWIDTH - 100, 15)
-
             # draw vectors
-            # pygame.draw.line(self.screen, WHITE, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.target_vec.x, mob.pos.y + mob.target_vec.y), 3)  # target vector
-            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.displacement.x, mob.pos.y + mob.displacement.y), 3)  # displacement vector
-            # pygame.draw.line(self.screen, WHITE, (x_pos, y_pos), (x_pos + mob.anti_g.x, y_pos + mob.anti_g.y), 3)  # accn away from wall tiles
-            # pygame.draw.line(self.screen, GREEN, (x_pos, y_pos), (x_pos + mob.vel.x * 10, y_pos + mob.vel.y *  10), 3)  # velocity vector
+
+            # pygame.draw.line(self.screen, WHITE, (x_pos, y_pos), (x_pos + mob.target_vec.x, y_pos + mob.target_vec.y), 3)  # target vector
+            # pygame.draw.line(self.screen, RED, (x_pos, y_pos), (x_pos + mob.anti_g.x*10000, y_pos + mob.anti_g.y*10000), 3)  # accn away from wall tiles
+            # pygame.draw.line(self.screen, GREEN, (x_pos, y_pos), (x_pos + (mob.vel.x*5), y_pos + (mob.vel.y*5)), 3)  # velocity vector
             # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
             # pygame.draw.line(self.screen, YELLOW, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 6)  # target rad from player to origin
             # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.actual_rad.x, self.player.pos.y + mob.actual_rad.y), 3)  # final rad after subtending angle delta

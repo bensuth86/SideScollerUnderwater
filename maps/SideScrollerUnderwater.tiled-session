@@ -27,11 +27,11 @@
             "scaleInDock": 1
         },
         "test.tmx": {
-            "scale": 1,
-            "selectedLayer": 4,
+            "scale": 0.33,
+            "selectedLayer": 7,
             "viewCenter": {
-                "x": 815.5,
-                "y": 437
+                "x": 2536.363636363636,
+                "y": 906.0606060606062
             }
         },
         "test.tmx#PickUps": {

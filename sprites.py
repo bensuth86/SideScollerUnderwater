@@ -32,11 +32,12 @@ class Static_sprite(pygame.sprite.Sprite):
 
 class Platform(Static_sprite):
     """Wall sprite; player, mobs can't pass through.  Data read from Tile Layers within map tmx file"""
-    antiGrav = 8  # constant of acceleration which repels mob sprites away from walls
 
     def __init__(self, game, x, y, image, map_layer):
         """Generates a single platform tile."""
         super().__init__(game, x, y, image, map_layer)
+        self.rect_sides = rect_to_vectors(self.rect)  # store rect sides as list of position vectors for vector intersect
+        pass
 
 
 class Pick_up(Static_sprite):
@@ -730,7 +731,7 @@ class Enemy(Mobile_sprite):
         super().__init__(game, x, y, map_layer, image_dict, refkey)
         self.start_pos = vec(x, y)
         self.anti_g = vec(0, 0)  # TESTING only
-        self.chase_player_rad = 15 * self.game.map.tilesize  # chase player if within radius
+        self.chase_player_rad = 2 * self.game.map.gridwidth  # chase player if within radius
         self.rect_collisionF = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
         self.rect_collisionL = pygame.Rect(0, 0, self.game.map.tilesize, self.game.map.tilesize)  # for testing only
 
@@ -753,7 +754,8 @@ class Enemy(Mobile_sprite):
         for ref in self.adjacent_grids:
             for ptf in self.game.map.layers['platforms'][ref]:
                 displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
-                anti_g = -displacement * (Platform.antiGrav / displacement.length()**2) / self.__class__.mass  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
+                # anti_g = -displacement * (1/ displacement.length()**2) / self.__class__.mass  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
+                anti_g = -displacement * (self.__class__.mass / displacement.length()**2)  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
                 self.vel += anti_g
                 self.anti_g = anti_g  # TESTING only (drawing)
 
@@ -774,14 +776,11 @@ class Enemy(Mobile_sprite):
         if self.collide_platforms(1):  # check vertical collision
             self.vel.y *= -1 / 2  # bounce off walls
 
-    def get_target_vector(self, target):
-        """Find new target vector from mob centre to target centre."""
+    def get_target_vector(self):
+        """Find new target vector from mob centre to target centre + error."""
 
-        # Limit target to within map extents
-        self.target.x = max(min(self.game.map.width - (4 * self.game.map.tilesize), self.target.x), 4 * self.game.map.tilesize)
-        self.target.y = max(min(self.game.map.height - (4 * self.game.map.tilesize), self.target.y), 4 * self.game.map.tilesize)
-
-        new_target_vec = target - vec(self.rect.centerx, self.rect.centery)
+        adjust_target = self.target_error()
+        new_target_vec = adjust_target - vec(self.rect.centerx, self.rect.centery)
         self.target_vec = new_target_vec or self.target_vec  # if new_target_vec is zero return previous target_vec
 
     def target_error(self):
@@ -791,24 +790,66 @@ class Enemy(Mobile_sprite):
         d = swc or 1  # either 1 or -1
         pdlr_target_vec = vec(d*self.target_vec.y, -d*self.target_vec.x)  # clockwise / anticlockwise perpendicular target vec
 
-        # vary target position by +/- error margin equivalent to 10% of the perpendicular target vector
-        x_error = pdlr_target_vec.x * self.__class__.error_margin
-        y_error = pdlr_target_vec.y * self.__class__.error_margin
+        # vary target position by +/- error margin equivalent to % of perpendicular target vector
+        error_margin = randrange(0, self.__class__.error_margin + self.__class__.error_var, 10)  # vary error margin between +/- error_var
+        x_error = pdlr_target_vec.x * error_margin / 100
+        y_error = pdlr_target_vec.y * error_margin / 100
 
         adjust_target = vec(self.target.x + x_error, self.target.y + y_error)  # target_position adjusted for % error
+
         return adjust_target
 
     def idle_swim(self, territory_rad):
         """ Swim towards random points (targets) on screen when not chasing player, other mobs etc"""
         switch_target = False
-        if self.target_vec.length() < self.game.map.tilesize:
+        # if self.target_vec.length() < self.rect.width:  # if within 1 x width of the target
+        #     switch_target = True
+
+        if self.vel.length_squared() < 1:
             switch_target = True
-        if interval_trigger(self.timer, 4, self.game.dt):
+
+        if interval_trigger(self.timer, 4, self.game.dt):  # trigger target switch every 4 seconds
             switch_target = True
+
         if switch_target:
 
-            self.target.x = randrange(self.start_pos.x - territory_rad, self.start_pos.x + territory_rad)
-            self.target.y = randrange(self.start_pos.y - 0.2 * territory_rad, self.start_pos.y + 0.2 * territory_rad)
+            targetx = randrange(int(self.start_pos.x - territory_rad), int(self.start_pos.x + territory_rad))
+            targety = randrange(int(self.start_pos.y - 0.25 * territory_rad), int(self.start_pos.y + 0.25 * territory_rad))
+
+            # Limit target to within map extents
+            targetx = max(min(self.game.map.width - self.game.map.gridwidth, targetx), self.game.map.gridwidth)
+            targety = max(min(self.game.map.height - self.game.map.gridheight, targety), self.game.map.gridheight)
+
+            target = vec(targetx, targety)
+            if not self.check_intersect(target):
+                self.target = target
+
+    def chase_player(self):
+        """ Switch target to player centre if platform not between mob and player"""
+        if (self.game.player.pos - self.pos).length_squared() < self.chase_player_rad ** 2:
+            target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
+            if not self.check_intersect(target):
+                self.target = target
+
+    def check_intersect(self, target):
+        """ Check if platform is between current position and target vect"""
+        for ref in self.adjacent_grids:
+            for ptf in self.game.map.layers['platforms'][ref]:
+                for side in ptf.rect_sides:
+                    if vec_intersect(self.pos, target, side[0], side[1]):
+                        self.start_pos = vec(self.pos.x, self.pos.y)  # reset start position
+                        return True
+
+        return False
+        # self.target = target
+
+
+                        # switch target perpendicular
+                        # self.target.x = self.target.y - self.pos.y + self.pos.x
+                        # self.target.y = self.target.x - self.pos.x + self.pos.y
+
+                        # self.target.x = ptf.rect.centerx + ptf.rect.centery - self.pos.y
+                        # self.target.y = ptf.rect.centery + ptf.rect.centerx - self.pos.x
 
     def take_damage(self, points_lost):
 
@@ -831,30 +872,33 @@ class Enemy(Mobile_sprite):
 
         # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
-
         self.idle_swim(self.__class__.territory_rad)
-        if (self.game.player.pos - self.pos).length_squared() < self.chase_player_rad**2:
-            self.target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-        adjust_target = self.target_error()  # add a % error to the target which switches between +/- error every second for less predictable mob movement
-        self.get_target_vector(adjust_target)  # find new target vector
+        self.chase_player()
+        # if (self.game.player.pos - self.pos).length_squared() < self.chase_player_rad**2:
+        #     target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
+            # if not self.check_intersect(self.pos, target):
+            #     self.target = target
+        # self.check_intersect(target)
+        self.get_target_vector()  # find new target vector
         self.chase_target()
         self.avoid_walls()
         self.avoid_mobs()
-
         self.collide_walls()
 
         self.death()
+
         # self.pos += self.vel
 
 
 class Daddyfish(Enemy):
 
     hitpoints = 100
-    territory_rad = 920  # 20 * maptilesize
-    maxspeed = 6
-    mass = 9
-    # momentum = 0.9  # % velocity transferred to player during collision
-    error_margin = 0.5  # percentage error for tracking target vec
+    territory_rad = 1472  # 4 * map.gridwidth
+    maxspeed = 8
+    mass = 4
+
+    error_margin = 5  # average percentage error for tracking target vec  (25%
+    error_var = 2  # variance in percentage error ( 25 +/- 5% )
     switch_freq = 2  # switch to new target every n seconds
 
     avoidRect_length = 276  # 6 * TILESIZE  # rect for detecting platforms/ walls
@@ -870,11 +914,11 @@ class Daddyfish(Enemy):
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
 
     def chase_target(self):
-        """Get acceleration vector directed to target and return new velocity.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
+        """Get acceleration vector directed to target.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
         self.rect_rtn = vec(self.vel.x, self.vel.y).angle_to(vec(1, 0))  # angle sprite so facing target
 
-        accn = 0.1  # acceleration magnitude
+        accn = 0.3  # acceleration magnitude
         drag_coeff = accn / Daddyfish.maxspeed  # friction/ drag coefficient
 
         accn_vec = vec(self.target_vec.normalize() * accn)
@@ -886,12 +930,12 @@ class Dartfish(Enemy):
 
     hitpoints = 10
     vel = vec(6, 0)  # initial velocity
-    max_speed = 16
-    mass = 1
-    # momentum = 0.1  # % velocity transferred to player during collision
+    max_speed = 14
+    mass = 6
     territory_rad = 690  # 15 * TILESIZE
-    error_margin = 0.5  # percentage error for tracking target vec
-    switch_freq = 2  # switch to new target every n seconds
+    error_margin = 25  # average percentage error for tracking target vec  (25%
+    error_var = 30  # variance in percentage error ( 25 +/- 30% )
+    switch_freq = 0.2  # recalc target_error every n seconds (don't confuse with change target idle_swim fnc)
 
     avoidRect_length = 368  # 8 * TILESIZE  # rect for detecting platforms/ walls
 
