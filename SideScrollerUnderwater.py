@@ -1,20 +1,18 @@
 # Project setup
 
-import pygame
 import pytmx
 from string import ascii_uppercase
 import time
 import colorsys
 
-
 from helpers.transform_images import *
+from object_pools import *
 from sprites import *
 
 
 # HUD functions
 
 def draw_sprite_bar(surf, x, y, pct, c1, c2, c3):
-
     pct = max(0, pct)
     bar_length, bar_height = 100, 20
     # bar_height = 20
@@ -35,16 +33,18 @@ class Camera:
 
     # TODO Parallax scrolling; objects, map layers move at different rates rel to camera scrolling speed
     def __init__(self, game):
-
         self.camera_rect = pygame.Rect(0, 0, SCREENWIDTH, SCREENHEIGHT)
         self.pos = pygame.Vector2(0, 0)  # float-based camera position
         self.game = game
 
-    def update(self, target, lerp_factor=1):  # lerp of 0.1 preferref
+    def update(self, target, lerp_factor=0.1):  # lerp of 0.1 preferref
 
         # update camera offset according to player's new position i.e. camera follows player
-        x_offset = target.pos.x - (SCREENWIDTH / 2)
-        y_offset = target.pos.y - (SCREENHEIGHT / 2)
+        # x_offset = target.pos.x - (SCREENWIDTH / 2)
+        # y_offset = target.pos.y - (SCREENHEIGHT / 2)
+
+        x_offset = target.rect.centerx - (SCREENWIDTH / 2)
+        y_offset = target.rect.centery - (SCREENHEIGHT / 2)
 
         # limit scrolling to map size
         x_offset = max(0, x_offset)  # left map edge
@@ -63,12 +63,10 @@ class Camera:
         surface.blit(background_image, (-bg_offset.x, -bg_offset.y))
 
     def apply(self, sprite):
-
         # move on screen objects according to camera offset e.g. player moves right, map objects shift left
         offset_x = sprite.rect.x - self.pos.x
         offset_y = sprite.rect.y - self.pos.y
         return offset_x, offset_y
-        # return sprite.rect.move(self.pos)
 
     def apply_rect(self, rect):
         """ Apply to rect rather than sprite"""
@@ -83,7 +81,6 @@ class Grid(pygame.sprite.Group):
      as they travel across the map for collision detection"""
 
     def __init__(self, coordinates, x1, y1, x2, y2):
-
         pygame.sprite.Group.__init__(self)
         self.coordinates = coordinates
         self.x1 = x1  # x top left corner of grid
@@ -113,7 +110,7 @@ class TiledMap:
 
         # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
         self.layers = self.generate_map_layers()
-        self.mobile_layers = ['players', 'weapons', 'enemies']  # map layers holding mobile sprites
+        self.mobile_layers = ['players', 'obstacles', 'weapons', 'enemies']  # map layers holding mobile sprites
 
         self.game = game
 
@@ -122,16 +119,17 @@ class TiledMap:
 
         # setup coords (A1, A2, A3 ....)
         AZ = list(ascii_uppercase)  # list alphabet A-Z
-        AZZ = AZ + list(ascii_uppercase) + [letter1+letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
+        AZZ = AZ + list(ascii_uppercase) + [letter1 + letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
 
-        self.x_coords = AZZ[:(int(self.width/self.gridwidth))]  # grid squares along map length [A, B, C, D ...
-        self.y_coords = [str(n) for n in range(int(self.height/self.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
+        self.x_coords = AZZ[:(int(self.width / self.gridwidth))]  # grid squares along map length [A, B, C, D ...
+        self.y_coords = [str(n) for n in range(int(self.height / self.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
 
     def generate_map_layers(self):
         """ Map layers for Platforms, players, mobs etc.  Each layer divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites """
 
         map_layers = {'empty': {},  # TESTING ONLY
                       'platforms': {},
+                      'obstacles': {},
                       'pickups': {},
                       'players': {},
                       'weapons': {},
@@ -142,10 +140,9 @@ class TiledMap:
             # generate grid squares
             for i, grid_col in enumerate(self.x_coords):
                 for j, grid_row in enumerate(self.y_coords):
-
-                    grid_ref = (grid_col+grid_row)  # 'A1'
+                    grid_ref = (grid_col + grid_row)  # 'A1'
                     x1, y1 = (i * self.gridwidth), (j * self.gridheight)  # top left corner
-                    x2, y2 = x1+self.gridwidth, y1+self.gridheight  # bottom right corner
+                    x2, y2 = x1 + self.gridwidth, y1 + self.gridheight  # bottom right corner
                     grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
                     value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
 
@@ -153,9 +150,9 @@ class TiledMap:
 
     def get_active_grids(self):
         """ Return list of gridrefs currently on screen and adjacent to screen boundaries - for calling grid.update"""
-        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + 2*self.gridwidth]  # (left boundary, right boundary)
+        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + 2 * self.gridwidth]  # (left boundary, right boundary)
         x_bound[0], x_bound[1] = max(x_bound[0], 0), min(x_bound[1], self.width)  # clamp to within map boundaries
-        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + 2*self.gridheight]  # (top boundary, bottom boundary)
+        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + 2 * self.gridheight]  # (top boundary, bottom boundary)
         y_bound[0], y_bound[1] = max(y_bound[0], 0), min(y_bound[1], self.height)  # clamp to within map boundaries
 
         left_col, right_col = int(x_bound[0] // self.gridwidth), int(x_bound[1] // self.gridwidth)
@@ -166,17 +163,18 @@ class TiledMap:
 
     def read_tiled_data(self, surface):
         """ Generate platform tiles and single map surf image for drawing """
-        ti = self.tmxdata.get_tile_image_by_gid
-        for layer in self.tmxdata.visible_layers:  # check visible map layers (dictionary) in Tiled
-            if isinstance(layer, pytmx.TiledTileLayer):  # Tile Layer, Object Layer or Image Layer
+        # ti = self.tmxdata.get_tile_image_by_gid  # shorthand function call
+        for layer in self.tmxdata.visible_layers:  # check visible map layers (generator) in Tiled
+            if isinstance(layer, pytmx.TiledTileLayer):  # Tile Layer
                 for col, row, gid, in layer:
-                    tile_image = ti(gid)
+                    tile_image = self.tmxdata.get_tile_image_by_gid(gid)
                     if tile_image:
-                        x, y = col * self.tmxdata.tilewidth, row * self.tmxdata.tileheight  # position in pixels
+                        tile_width, tile_height = self.tmxdata.tilewidth, self.tmxdata.tileheight
+                        x, y = col * tile_width, row * tile_height  # position in pixels
                         surface.blit(tile_image, (x, y))  # blit tile onto map surf image
                         if layer.name == 'Platforms':
                             # generate platform tile sprites and store to platforms map layer
-                            Platform(self.game, x, y, tile_image, 'platforms')
+                            Platform(self.game, x, y, tile_width, tile_height, 'platforms')
 
     def generate_map(self):
 
@@ -189,6 +187,7 @@ class Mesh:
     """ For testing: setup nodes at map tile corners stored as dictionaries.  For each node calculate anti_g vector (effect of platforms)
     and store corresponding r, g, b variable ranging from blue to red hue for drawing to screen.
     """
+
     def __init__(self, game):
 
         self.game = game
@@ -223,7 +222,6 @@ class Mesh:
 
         adjacent_grids = []
         grid_col, grid_row = x // self.game.map.gridwidth, y // self.game.map.gridheight
-        # gridref = self.map.x_coords[grid_col] + self.map.y_coords[grid_row]
 
         grids_left = max(grid_col - 1, 0)  # return index position for grids to the left
         grids_right = min(grid_col + 1, len(self.game.map.x_coords) - 1)
@@ -284,11 +282,19 @@ class Game:
                      "baitdecoy": (lambda player: player.baitdecoy + 5)
                      }
 
-    MOBCLASSES = {
+    mob_configs = {
         'dartfish': Dartfish,
         'spinefish': Spinefish,
         'daddyfish': Daddyfish
-    }
+                    }
+
+    weapon_configs = {'harpoon': Harpoon,
+                      'torpedo': Torpedo
+                      }
+
+    mapobjct_configs = {'mine' : Mine
+
+                        }
 
     def __init__(self):
         # initialize game window, etc
@@ -296,7 +302,6 @@ class Game:
         pygame.mixer.init()
         pygame.display.set_caption(TITLE)
         self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT), flags=pygame.SCALED, vsync=1)
-        # self.screen = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
         self.camera = Camera(self)
 
         self.clock = pygame.time.Clock()
@@ -322,7 +327,7 @@ class Game:
         self.mob_spritesheet = SpriteSheet('mobs')
         self.weapons_spritesheet = SpriteSheet('weapons')
 
-        # get images from spritesheets and store image surf to dictionary - dictionary ordered by category, then nested subcat if applicable
+        # get images from spritesheets and cache image surf to dictionary - dictionary ordered by category, then nested subcat if applicable
         self.effects_images = self.effects_spritesheet.get_sprite_images()
         self.effects_images['enemydeath4x4'] = resize_images(self.effects_images.get('enemydeath'), (4 * self.map.tilesize, 4 * self.map.tilesize))
         self.effects_images['explosion4x4'] = resize_images(self.effects_images.get('explosion'), (4 * self.map.tilesize, 4 * self.map.tilesize))
@@ -357,47 +362,63 @@ class Game:
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted- group for visual effects only
         self.all_sprites = pygame.sprite.Group()  # for drawing only
 
-        # generate static sprites from TiledMap object layers
-        for pickup in self.map.tmxdata.layernames['pickups']:
-            pickup = Pick_up(self, pickup.x, pickup.y, pickup.image, 'pickups', pickup.name)
-            self.all_sprites.add(pickup)
+        # Object pools
+        self.objectpools = {}
+
+        for key, mobclass in Game.mob_configs.items():
+            self.objectpools[key] = ObjectPool(self, mobclass, 50, mobclass.map_layer, self.mob_images, key)
+
+        for key, weaponclass in Game.weapon_configs.items():
+            self.objectpools[key] = ObjectPool(self, weaponclass, 5, weaponclass.map_layer, self.weapons_images, key)
+
+        for key, mapobjctclass in Game.mapobjct_configs.items():
+            self.objectpools[key] = ObjectPool(self, mapobjctclass, 50, mapobjctclass.map_layer, self.weapons_images, key)
+
+        # generate static sprites from TiledMap Tile layers
+        for key, ttl in self.map.tmxdata.layernames.items():  # ttl - TiledTileLayer
+            if ttl.visible:
+                if key == 'pickups':
+                    for pickup in ttl:
+                        pickup_sprite = Pick_up(self, pickup.x, pickup.y, pickup.width, pickup.height, pickup.image, 'pickups', pickup.name)
+                        self.all_sprites.add(pickup_sprite)
 
         # generate mobile sprites from TiledMap object layers
-        for player in self.map.tmxdata.layernames['players']:
-            x, y = player.x + player.width/2, player.y + player.height/2
-            self.player = Player(self, x, y, 'players', self.player_images, 'player_idle')  # xpos, ypos, width, height (in TILES i.e. 1 TILE X 2 TILES), image (first frame of North orientation by default)
-            self.all_sprites.add(self.player)
+        for key, tog in self.map.tmxdata.layernames.items():  # ttl - TiledObjectGroup
+            if tog.visible:
+                if key == 'players':
+                    for player in tog:
+                        self.player = Player(self, player.x, player.y, 'players', self.player_images, 'player_idle')  # xpos, ypos, width, height
+                        self.all_sprites.add(self.player)
 
+                if key == 'obstacles':
+                    for obstacle in tog:
+                        if obstacle.name == 'Mine':
+                            x, y = obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2
+                            self.objectpools['mine'].borrow_object(x, y)
+                            # mine.add_to_map_layer(key)
+                            # self.all_sprites.add(mine)
+
+        # generate enemies from TiledMap object layers
         for i, enemy in enumerate(self.map.tmxdata.layernames['enemies']):
-            x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
             if enemy.name == 'Enemy':  # if mob child class is not specified
-                # mobkey = random.choice(list(Game.MOBCLASSES.keys()))  # random choice of mob class
-                if i+1 % 3 == 0:  # every 3rd mob generated
+                if i + 1 % 3 == 0:  # every 3rd mob generated
                     mobkey = 'spinefish'
-                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
-                elif i+1 % 20 == 0:  # every 10th mob generated
+                elif i + 1 % 20 == 0:  # every 10th mob generated
                     mobkey = 'daddyfish'
-                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
                 else:
                     mobkey = 'dartfish'
-                    mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
-            else:
+            else:  # mob child class is determined
                 mobkey = enemy.name
-                mob = Game.MOBCLASSES[mobkey](self, x, y, 'enemies', self.mob_images, mobkey)
-            self.all_sprites.add(mob)
+            x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
+            mob = self.objectpools[mobkey].borrow_object(x, y)
+
             self.mob_sprites.add(mob)  # TESTING ONLY
 
-        for weapon in self.map.tmxdata.layernames['weapons']:
-            if weapon.name == 'Mine':
-                x, y = weapon.x + weapon.width / 2, weapon.y + weapon.height / 2
-                mine = Mine(self, x, y, 'weapons', self.weapons_images, 'mine')
-                self.all_sprites.add(mine)
-
-        # load Mesh TESTING ONLY
-        self.mesh = Mesh(self)
+        self.mesh = Mesh(self)  # load Mesh TESTING ONLY
 
     def run(self):
-        """ Main game loop"""
+
+        # """ Main game loop"""
         self.playing = True
         # pygame.mixer.music.play(loops=-1)
 
@@ -444,10 +465,10 @@ class Game:
                 self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
                 self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
                 sprite.gridref = sprite.next_grid
-                # kill missile sprites not in active sprites list
+                # return missile sprites not in active sprites list to Objectpool
                 if sprite.gridref not in self.map.active_gridrefs:
-                    if isinstance(sprite, Harpoon):  # if missile sprite
-                        sprite.kill()
+                    if isinstance(sprite, Missile):  # if missile sprite
+                        self.objectpools[sprite.refkey].rtrn_object(sprite)
 
     def update(self):
         """Game Loop - Update"""
@@ -461,17 +482,16 @@ class Game:
 
         # call mobile sprite update fnc then update new rect position
         for map_layer in self.map.mobile_layers:
-            grids = self.map.layers[map_layer]
-            for ref in self.map.active_gridrefs:
+            grids = self.map.layers[map_layer]  # return dictionary containing grids (sprite groups)
+            for ref in self.map.active_gridrefs:  # 'A0', 'A1', 'A2' ...
                 grids[ref].update()
+                # post sprite update call for current grid, update sprite positions and transfer sprites to new grid where applicable
                 for sprite in grids[ref]:
                     sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
-                    # sprite.rect.center = (sprite.pos.x, sprite.pos.y)
+
                     # reference sprites to be transferred to new grid
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
-
-                    # print(sprites_to_transfer)
 
         self.assign_sprites_to_grid(sprites_to_transfer)  # transfer flagged sprites to new grid
 
@@ -481,18 +501,14 @@ class Game:
             sprite.pos += sprite.vel
             sprite.hitrect.center = sprite.pos  # must update hitrect rather than rect as rect position overwritten in Mobile_sprite.transform_image()
 
+            # return sprites to object pools after 1 animation cycle
             if sprite.check_anim_end(sprite.current_animation):
-                sprite.kill()
+                self.objectpools[sprite.refkey].rtrn_object(sprite)
 
-        # Kill sprites in hold_sprites group if they're off screen
+        # return sprites to pools if they're off screen
         for sprite in self.hold_sprites:
             if sprite.gridref not in self.map.active_gridrefs:
-                sprite.kill()
-
-        # limit holding group size
-        if len(self.hold_sprites) > 50:
-            if self.hold_sprites:
-                list(self.hold_sprites)[0].kill()
+                self.objectpools[sprite.refkey].rtrn_object(sprite)
 
     def draw_text(self, text, size, colour, x, y):
 
@@ -507,7 +523,6 @@ class Game:
         """ Display grid squares TESTING ONLY"""
         font = pygame.font.Font('freesansbold.ttf', 16)
 
-        # for grid_ref, sptgrp in self.grid_squares.items():
         for grid in self.map.layers['empty'].values():
             x1 = grid.x1
             y1 = grid.y1
@@ -526,25 +541,26 @@ class Game:
         self.screen.fill(DEEPBLUE)
         offset_x, offset_y = self.camera.apply_rect(self.map_rect)
         self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
+
         # blit all map sprites, content
         for sprite in self.all_sprites:
-
             sprite.draw()
 
         # HUD functions
-        draw_sprite_bar(self.screen, 0.2*SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
-        draw_sprite_bar(self.screen, 0.8*SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
-        self.draw_text(self.player.current_weapon, 20, RED, 0.4*SCREENWIDTH, 15)  # current weapon
-        self.draw_text(str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6*SCREENWIDTH, 15)
-        for grid in self.map.layers['weapons'].values():
+        draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
+        draw_sprite_bar(self.screen, 0.8 * SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
+        self.draw_text(self.player.current_weapon, 20, RED, 0.4 * SCREENWIDTH, 15)  # current weapon
+
+        self.draw_text(str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6 * SCREENWIDTH, 15)
+        for grid in self.map.layers['obstacles'].values():
             for sprite in grid:
                 if sprite.refkey == 'mine':
                     if sprite.active:
-                        self.draw_text(str(int(sprite.countdown+1)), 50, RED, sprite.rect.centerx - self.camera.pos.x, sprite.rect.centery - self.camera.pos.y)
+                        self.draw_text(str(int(sprite.countdown + 1)), 50, RED, sprite.rect.centerx - self.camera.pos.x, sprite.rect.centery - self.camera.pos.y)
 
         # TESTING ONLY #
 
-        # self.draw_grid()
+        self.draw_grid()
         # self.mesh.draw()
 
         # current_grids = str(self.player.current_grids)
@@ -566,8 +582,8 @@ class Game:
 
         # draw player rect
 
-        # pygame.draw.rect(self.screen, WHITE, self.player.rect, 2)  # player rect
-        # pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)  # player hitrect
+        pygame.draw.rect(self.screen, WHITE, self.player.rect, 2)  # player rect
+        pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)  # player hitrect
         # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
         # pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
 
@@ -583,7 +599,8 @@ class Game:
             y_pos = mob.pos.y - self.camera.pos.y
 
             # draw_sprite_bar(self.screen, x_pos - 50, y_pos - 50, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
-            # pygame.draw.rect(self.screen, RED, mob.rect, 2)
+            # pygame.draw.rect(self.screen, WHITE, mob.rect, 2)
+            # pygame.draw.rect(self.screen, RED, mob.hitrect, 2)
 
             anti_g = str((round(mob.anti_g.x, 3), round(mob.anti_g.y, 3)))
             anti_g_size = str((round(mob.anti_g.length(), 3)))

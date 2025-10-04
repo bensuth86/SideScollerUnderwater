@@ -12,46 +12,69 @@ vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
 class Static_sprite(pygame.sprite.Sprite):
 
-    """Static, inanimate sprites includes props, platforms, pickups.  No update method"""
-    def __init__(self, game, x, y, image, map_layer):
+    """Static, inanimate sprites includes props, platforms, pickups.  Parent class for all sprites. No update method"""
+    def __init__(self, game, x, y, w, h):
 
         pygame.sprite.Sprite.__init__(self)
         self.game = game
         self.pos = vec(x, y)
-
-        self.image = image
-        self.rect = image.get_rect()
+        self.rect = pygame.Rect(x, y, w, h)
+        # self.hitrect = pygame.Rect(x, y, w, h)
         self.rect.topleft = (self.pos.x, self.pos.y)
         self.hitrect = self.rect.copy()
 
-        self.map_layer = map_layer
+    def get_gridref(self):
+
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
-        self.gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
+        gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
+
+        return gridref
+
+    def get_adjacent_grids(self):
+        """ Return list of current and adjacent gridrefs e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
+
+        self.adjacent_grids = []
+        grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
+        grids_left = max(grid_col-1, 0)  # return index position for grids to the left
+        grids_right = min(grid_col+1, len(self.game.map.x_coords)-1)
+        grids_above = max(grid_row-1, 0)
+        grids_below = min(grid_row+1, len(self.game.map.y_coords)-1)
+        for i in range(grids_left, grids_right+1):
+            for j in range(grids_above, grids_below+1):
+                gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
+                self.adjacent_grids.append(gridref)
+
+    def add_to_map_layer(self, map_layer):
+
+        self.map_layer = map_layer
+        self.gridref = self.get_gridref()
         self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to new grid
 
 
 class Platform(Static_sprite):
-    """Wall sprite; player, mobs can't pass through.  Data read from Tile Layers within map tmx file"""
+    """Wall sprite; player, mobs can't pass through.  Data read from TiledTile Layers within map tmx file.  Individual platform sprites
+    have no image- only used for collision detection, anti-g"""
 
-    def __init__(self, game, x, y, image, map_layer):
+    def __init__(self, game, x, y, w, h, map_layer):
         """Generates a single platform tile."""
-        super().__init__(game, x, y, image, map_layer)
+        super().__init__(game, x, y, w, h)
         self.rect_sides = rect_to_vectors(self.rect)  # store rect sides as list of position vectors for vector intersect
-        pass
+        self.add_to_map_layer(map_layer)
 
 
 class Pick_up(Static_sprite):
-    """Data read from Object Layers within map tmx file"""
-    def __init__(self, game, x, y, image, map_layer, pickup_cat):
+    """Data read from Object Layers within map tmx file:  apply_pickup method calls lamda function corresponding to pickup cat"""
+    def __init__(self, game, x, y, w, h, image, map_layer, pickup_cat):
 
-        super().__init__(game, x, y, image, map_layer)
+        super().__init__(game, x, y, w, h)
+        self.image = image
         self.pickup_cat = pickup_cat
+        self.add_to_map_layer(map_layer)
 
     def apply_pickup(self):
 
         update_inst = self.game.PICKUP_CATGRY[self.pickup_cat]  # apply lambda function for pickup_cat
         update_inst(self.game.player)
-        # self.game.PICKUP_CATGRY[self.pickup_cat](self.game.player)
         self.game.player.score += 50
 
     def draw(self):
@@ -59,33 +82,29 @@ class Pick_up(Static_sprite):
         self.game.screen.blit(self.image, self.game.camera.apply(self))
 
 
-class Mobile_sprite(pygame.sprite.Sprite):
+class Mobile_sprite(Static_sprite):
     """Mobile sprites are animated and/ or have velocity.  Data read from Object Layers within map tmx file.
-    Self.pos is placed at rect.center rather than topleft for rotating sprites"""
+    Self.pos is placed at rect.center rather than topleft for rotating sprites.  Update called each game loop"""
     damage_alpha = [i for i in range(0, 255, 55)]  # setup sequence of alpha channel (transparency) values to iterate through upon receiving damage
     # damage alpha chain from 0 to 255 in steps of 55
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
 
         pygame.sprite.Sprite.__init__(self)
-        # self.start_pos = vec(col, row) * self.game.map.tilesize  # for keeping mob within rad of starting position
         self.game = game
-        self.pos = vec(x, y)
-        self.map_layer = map_layer
-
-        self.refkey = refkey  # key name for sprite image dictionary
-        self.image = image_dict[self.refkey][0]
+        self.ref_image = image_dict[refkey][0]  # reference original image for image transformation (flip/ rotate)
+        self.image = image_dict[refkey][0]
         self.rect = self.image.get_rect()
+        self.pos = vec(x + self.rect.width / 2, y + self.rect.height / 2)
         self.rect.center = self.pos
-        self.setup_hitrect()
-        self.gridref = self.get_gridref()  # current grid position
-        self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to map_layer at grid (spritegroup) position
-        # self.assign_sprite_to_grid()
-        self.transfer = False
-
-        self.ref_image = self.image.copy()  # for mob image transformation (flip/ rotate)
-        self.radius = 0.75 * ((self.rect.width+self.rect.height)/4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
+        self.refkey = refkey  # key name for sprite map layer, image dictionary
+        self.HRoffset = 0  # hitrect offset from sprite rect centre
+        self.radius = 0.75 * ((self.rect.width + self.rect.height) / 4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
         self.rect_rtn = 0  # rotate sprite rect and image
+        self.direction = vec(1, 0)
+
+        self.setup_hitrect()
+        self.transfer = False
 
         self.vel = vec(0, 0)  # initialise velocity vector
 
@@ -102,17 +121,11 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def setup_hitrect(self):
         """ hitrect square centred about self.rect.center. Used for sprite collisions. """
 
-        self.hitrect = self.rect.copy()
-        HRlength = 1/2 * (self.rect.width + self.rect.height)  # MUST be divisible by 2 (without remainder) for collisions to work properly
-        HRlength = int((HRlength/2)+1) * 2  # if not divisible by 2 round up 1/2 HRlength length to nearest integer
-        self.hitrect.width, self.hitrect.height = HRlength, HRlength
-
-    def get_gridref(self):
-
-        grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
-        gridref = self.game.map.x_coords[grid_col] + self.game.map.y_coords[grid_row]
-
-        return gridref
+        HRwidth = 1/2 * (self.rect.width + self.rect.height)  # MUST be divisible by 2 (without remainder) for collisions to work properly
+        HRwidth = int((HRwidth/2)+1) * 2  # if not divisible by 2 round up 1/2 HRlength length to nearest integer
+        HRheight = HRwidth
+        self.hitrect = pygame.Rect(self.rect.centerx, self.rect.centery, HRwidth, HRheight)
+        self.hitrect.center = self.rect.center + self.direction.normalize() * self.HRoffset
 
     def flag_transfer_sprite(self):
         """ If sprite has moved to a new grid flag sprite for update in main game update"""
@@ -122,29 +135,8 @@ class Mobile_sprite(pygame.sprite.Sprite):
             self.next_grid = gridref
             return True
 
-    def assign_sprite_to_grid(self):
-        """ Remove sprite from previous grids, and reassign sprite to corresponding grids (sprite groups) in game class grid squares dictionary"""
-
-        self.game.map.layers[self.map_layer][self.gridref].remove(self)  # remove sprite from grid for previous loop
-        self.get_gridref()  # get updated grid coordinates
-        self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to new grid
-
-    def get_adjacent_grids(self):
-        """ Return list of current and adjacent gridrefs e.g. if sprite in grid B1 this will return ['A0', 'A1', 'A2', 'B0', 'B1', 'B2', 'C0', 'C1', 'C2'] """
-
-        self.adjacent_grids = []
-        grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
-        grids_left = max(grid_col-1, 0)  # return index position for grids to the left
-        grids_right = min(grid_col+1, len(self.game.map.x_coords)-1)
-        grids_above = max(grid_row-1, 0)
-        grids_below = min(grid_row+1, len(self.game.map.y_coords)-1)
-        for i in range(grids_left, grids_right+1):
-            for j in range(grids_above, grids_below+1):
-                gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
-                self.adjacent_grids.append(gridref)
-
     def collide_rect(self, sprite1, sprite2):
-
+        """ hitrect collision between 2 sprites"""
         return sprite1.hitrect.colliderect(sprite2.hitrect)
 
     def collide_sprites(self, map_layer):
@@ -161,8 +153,6 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def collide_platforms(self, axis):  # [0, 1] for either [x, y] axis
 
         self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]  # update rect with new position
-        # self.rect.center = self.hitrect.center  # update image rect position in turn
-        totalhits = []  # for colliding with sprites in multiple grids when between grid boundaries
         totalhits = self.collide_sprites('platforms')
 
         if totalhits:
@@ -171,9 +161,7 @@ class Mobile_sprite(pygame.sprite.Sprite):
             # overlap between self.hitrect and platform.rect
             overlap = 0.5*d*(self.hitrect.size[axis] + totalhits[0].rect.size[axis]) - (totalhits[0].rect.center[axis] - self.hitrect.center[axis])
             self.pos[axis] -= overlap  # reset position so no longer colliding
-            self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]   # up
-            # date rect post collision
-            # self.rect.center = self.hitrect.center
+            self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]
             return True
 
     def atMapBoundaries(self):
@@ -205,12 +193,12 @@ class Mobile_sprite(pygame.sprite.Sprite):
             self.ref_image = pygame.transform.flip(self.ref_image, False, True)  # flip image
 
         self.image, self.rect = self.rotate_about_centre(self.rect_rtn)
-        # self.rect.center = self.hitrect.center  # reposition transformed image rect over sprite hitrect
+        self.rect.center = self.hitrect.center - (self.direction.normalize() * self.HRoffset)
 
     def damage_effect(self):
 
         if self.damaged:
-            # dmg_image = self.image.copy()
+
             try:
                 #  fill sprite image with increasing alpha channel values.  In addition apply special flag to blend the image
                 self.image.fill((255, 0, 0, next(self.damage_alpha)), special_flags = pygame.BLEND_RGBA_MULT)
@@ -223,10 +211,7 @@ class Mobile_sprite(pygame.sprite.Sprite):
         self.current_frame_index = int((self.timer // self.refresh_rate) % len(anim_reel))  # must be before self.timer updated for check_anim_end to work
         self.timer += self.game.dt
         self.ref_image = anim_reel[self.current_frame_index]
-        self.transform_image()
-        self.damage_effect()
         # self.image.fill(RED)
-        # return current_frame_index
 
     def check_anim_end(self, anim_reel):
         """ check if animation will end & return to 1st frame on next game loop"""
@@ -237,11 +222,166 @@ class Mobile_sprite(pygame.sprite.Sprite):
     def draw(self):
 
         self.animate(self.current_animation)
+        self.transform_image()
+        self.damage_effect()
         offset_x, offset_y = self.game.camera.apply(self)
         self.game.screen.blit(self.image, (int(offset_x), int(offset_y)))
 
 
+class Missile(Mobile_sprite):
+
+    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
+        self.direction = vec(1, 0)
+        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        self.current_animation = self.game.weapons_images[refkey]
+        self.HRoffset = 0.5*self.rect.width # offset from rect.center
+
+    def setup_hitrect(self):
+
+        HRheight = self.rect.height * 0.75
+        HRwidth = HRheight
+        self.hitrect = pygame.Rect(self.rect.centerx, self.rect.centery, HRwidth, HRheight)
+        self.HRoffset = 0.5*self.rect.width  # offset from rect.center so hitrect positioned at front of missile
+        self.rect.center = self.hitrect.center - self.direction.normalize()*self.HRoffset
+        pass
+
+    def activate(self, player):
+        """ On player.shoot() borrow missile sprite from pool, set position offset from player, direction and add to weapons map_layer"""
+        self.direction = vec(player.direction.x, player.direction.y)
+        self.rect_rtn = player.rect_rtn
+        self.vel = self.direction.normalize() * Harpoon.runspeed
+
+
+class Harpoon(Missile):
+
+    map_layer = 'weapons'
+    runspeed = 25
+
+    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+        super().__init__(game, x, y, map_layer, image_dict, refkey)
+
+    def collide_walls(self):
+
+        if self.collide_sprites('platforms'):
+            self.vel = vec(0, 0)
+            self.add(self.game.hold_sprites)
+            self.remove(self.game.map.layers[self.map_layer][self.gridref])
+
+    def collide_enemy(self):
+
+        hits = self.collide_sprites('enemies')
+        if hits:
+            hits[0].take_damage(10)
+
+            self.game.objectpools[self.refkey].rtrn_object(self)
+            choice(self.game.effects_sounds['mob_hit']).play()
+
+    def collide_mines(self):
+
+        hits = self.collide_sprites('obstacles')  # mine collision kill sprite
+        if hits:
+            if hits[0].refkey == 'mine':
+                self.game.objectpools[self.refkey].rtrn_object(self)
+
+    def update(self):
+
+        self.hitrect.center = self.pos
+
+        self.get_adjacent_grids()
+
+        # collisions
+        self.collide_walls()
+        self.collide_enemy()
+        self.collide_mines()
+
+
+class Torpedo(Missile):
+
+    map_layer = 'weapons'
+    runspeed = 20
+
+    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
+        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        self.affect_rad = 4 * game.map.tilesize  # radius for area of affect.  Countdown timer activated if player within affect_rad
+        self.damage_constant = (0.5 * self.affect_rad) ** 3 / 2  # constant for damage to sprites within affect_rad inversely proportional to distance squared
+        self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
+
+        self.vel = self.direction.normalize() * Torpedo.runspeed
+
+    def collide_walls(self):
+
+        if self.collide_sprites('platforms'):
+            self.pos.x += sign(self.vel.x) * 70  # move explosion closer to the platform
+            self.pos.y += sign(self.vel.y) * 70  # ditto
+
+            self.vel = vec(0, -2)  # explosion rises
+            return True
+
+    def collide_enemy(self):
+
+        for ref in self.adjacent_grids:
+            grid = self.game.map.layers['enemies'][ref]
+            hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
+        hits = self.collide_sprites('enemies')
+        if hits:
+            hits[0].vel += self.vel * 3/16  # add partial vel vector to mob on collision
+            hits[0].hitpoints = 0  # instant death for head on collision
+            self.vel *= 2/4
+            return True
+
+    def collide_mine(self):
+
+        hits = self.collide_sprites('obstacles')
+        for hit in hits:
+            if hit.refkey == 'mine':
+                # set mine to explode on current iteration i.e. immediately
+                hit.countdown = 0
+                hit.active = True
+                hit.vel = self.vel * 1 / 16  # transfer momentum to mine
+                self.vel *= 1 / 4  # vel reduced as a result
+                return True
+
+    def explode(self):
+
+        self.inflict_damage('players', 800)  # inflict damage on sprites within radius
+        self.inflict_damage('enemies', 1300)
+
+        self.remove(self.game.map.layers['weapons'][self.gridref])
+        self.add(self.game.hold_sprites)
+
+        # update animation reel to explosion animation
+        self.change_action(self.game.effects_images, 'explosion')  # change self.actionvar to new action
+        choice(self.game.effects_sounds['torpedo_explode']).play()
+
+    def inflict_damage(self, maplayerkey, v_const):
+
+        for ref in self.adjacent_grids:
+            for sprite in self.game.map.layers[maplayerkey][ref]:
+                # TODO Fix sprite going through walls due to explosion
+                # TODO set max vel for sprite as affect of explosion
+                displacement = vec(sprite.hitrect.center) - vec(self.hitrect.center)
+                damage = self.damage_constant / displacement.length()**2
+                sprite.vel = displacement.normalize() * (v_const / displacement.length())  # explosion veloctity in opposite direction to displacement.  Speed proportional to 1/ distance
+                sprite.vel += self.direction * -5  # Add velocity constant to increase minimum explosion affect
+                sprite.take_damage(damage)
+
+    def smoke_trail(self):
+
+        pass
+
+    def update(self):
+
+        self.hitrect.center = self.pos
+        self.get_adjacent_grids()
+        if any([self.collide_walls(), self.collide_mine(), self.collide_enemy()]):
+            self.explode()
+
+
 class Mine(Mobile_sprite):
+
+    map_layer = 'obstacles'
 
     """ damage_constant formula is fixed- DO NOT ALTER.  Only dependent on affect_rad"""
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
@@ -256,9 +396,14 @@ class Mine(Mobile_sprite):
         self.current_animation = self.game.weapons_images[refkey]
         self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
 
+        self.setup_hitrect()
+
+    def setup_hitrect(self):
+
         HRheight = self.rect.height * 0.6
         HRwidth = HRheight
-        self.hitrect.width, self.hitrect.height = HRwidth, HRheight
+        self.hitrect = pygame.Rect(self.rect.centerx, self.rect.centery, HRwidth, HRheight)
+        self.hitrect.center = self.rect.center
 
     def explode(self):
 
@@ -267,7 +412,7 @@ class Mine(Mobile_sprite):
 
         # detonate other mines within adjacent grids
         for ref in self.adjacent_grids:
-            for sprite in self.game.map.layers['weapons'][ref]:
+            for sprite in self.game.map.layers['obstacles'][ref]:
                 if sprite != self:
                     if sprite.refkey == 'mine':
                         # blow up mines in adjacent grids
@@ -275,7 +420,7 @@ class Mine(Mobile_sprite):
                         sprite.countdown = 1/50 * (displacement.length() // self.game.map.tilesize)  # countdown reset in proportion to distance
                         sprite.active = True
 
-        self.remove(self.game.map.layers['weapons'][self.gridref])
+        self.remove(self.game.map.layers['obstacles'][self.gridref])
         self.add(self.game.hold_sprites)
 
         # update animation reel to explosion animation
@@ -294,7 +439,6 @@ class Mine(Mobile_sprite):
 
     def update(self):
 
-        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
 
         if self.active:
@@ -303,163 +447,12 @@ class Mine(Mobile_sprite):
                 self.explode()
 
 
-class Harpoon(Mobile_sprite):
-
-    runspeed = 25
-
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
-
-        self.current_animation = self.game.weapons_images[refkey]
-        self.rect_rtn = game.player.rect_rtn
-        self.direction = game.player.direction
-        self.vel = self.direction.normalize() * Harpoon.runspeed
-        self.vel.x += randrange(-2, 2, 1)  # vary the direction marginally
-        self.vel.y += randrange(-2, 2, 1)
-
-        HRheight = self.rect.height * 0.75
-        HRwidth = HRheight
-        self.hitrect.width, self.hitrect.height = HRwidth, HRheight
-        self.HRoffset = self.direction.normalize()*0.5*self.rect.width  # offset from rect.center so hitrect positioned at front of missile
-        self.hitrect.center = self.rect.center + self.HRoffset
-
-    def collide_walls(self):
-
-        if self.collide_sprites('platforms'):
-            self.vel = vec(0, 0)
-            self.add(self.game.hold_sprites)
-            self.remove(self.game.map.layers[self.map_layer][self.gridref])
-
-    def collide_enemy(self):
-
-        hits = self.collide_sprites('enemies')
-        if hits:
-            hits[0].take_damage(10)
-            self.kill()
-            choice(self.game.effects_sounds['mob_hit']).play()
-
-    def collide_mines(self):
-
-        hits = self.collide_sprites('weapons')  # mine collision kill sprite
-        if hits:
-            if hits[0].refkey == 'mine':
-                self.kill()
-
-    def update(self):
-
-        # self.rect.center = self.pos
-        self.hitrect.center = self.rect.center + self.HRoffset
-
-        # self.assign_sprite_to_grid()
-        self.get_adjacent_grids()
-
-        # collisions
-        self.collide_walls()
-        self.collide_enemy()
-        self.collide_mines()
-
-        # self.pos += self.vel
-        # self.rect.center = self.pos
-        # self.hitrect.center = self.rect.center + self.HRoffset
-
-
-class Torpedo(Harpoon):
-
-    runspeed = 20
-
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
-        self.affect_rad = 4 * game.map.tilesize  # radius for area of affect.  Countdown timer activated if player within affect_rad
-        self.damage_constant = (0.5 * self.affect_rad) ** 3 / 2  # constant for damage to sprites within affect_rad inversely proportional to distance squared
-
-        self.current_animation = self.game.weapons_images[refkey]
-        self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
-
-        self.vel = game.player.direction.normalize() * Torpedo.runspeed
-
-    def collide_walls(self):
-
-        if self.collide_sprites('platforms'):
-            self.pos.x += sign(self.vel.x) * 70  # move explosion closer to the platform
-            self.pos.y += sign(self.vel.y) * 70  # ditto
-            self.hitrect.center = self.pos
-
-            self.vel = vec(0, -2)  # explosion rises
-            return True
-            # self.explode()
-
-    def collide_enemy(self):
-
-        for ref in self.adjacent_grids:
-            grid = self.game.map.layers['enemies'][ref]
-            hits = pygame.sprite.spritecollide(self, grid, False, pygame.sprite.collide_rect_ratio(0.7))
-            if hits:
-                hits[0].vel += self.vel * 3/16  # add partial vel vector to mob on collision
-                hits[0].hitpoints = 0  # instant death for head on collision
-                self.vel *= 1/4
-                return True
-
-    def collide_mine(self):
-
-        hits = self.collide_sprites('weapons')
-        for hit in hits:
-            if hit.refkey == 'mine':
-                # set mine to explode on current iteration i.e. immediately
-                hit.countdown = 0
-                hit.active = True
-                hit.vel = self.vel * 1 / 16  # transfer momentum to mine
-                self.vel *= 1 / 4  # vel reduced as a result
-                return True
-
-    def explode(self):
-
-        self.inflict_damage('players', 100)  # inflict damage on sprites within radius
-        self.inflict_damage('enemies', 1300)
-        self.remove(self.game.map.layers['weapons'][self.gridref])
-        self.add(self.game.hold_sprites)
-
-        # update animation reel to explosion animation
-        self.change_action(self.game.effects_images, 'explosion')  # change self.actionvar to new action
-        choice(self.game.effects_sounds['torpedo_explode']).play()
-
-    def inflict_damage(self, maplayerkey, v_const):
-
-        for ref in self.adjacent_grids:
-            for sprite in self.game.map.layers[maplayerkey][ref]:
-
-                displacement = vec(sprite.hitrect.center) - vec(self.rect.center)
-                damage = self.damage_constant / displacement.length()**2
-                sprite.vel = displacement.normalize() * (v_const / displacement.length())  # explosion veloctity in opposite direction to displacement.  Speed proportional to 1/ distance
-                sprite.vel += self.direction * -5  # Add velocity constant to increase minimum explosion affect
-                sprite.take_damage(damage)
-
-    def smoke_trail(self):
-
-        pass
-
-    def update(self):
-
-        # self.rect.center = self.pos
-        self.hitrect.center = self.rect.center + self.HRoffset
-
-        # self.assign_sprite_to_grid()
-        self.get_adjacent_grids()
-
-        # collide walls
-        # self.collide_walls()
-        if any([self.collide_walls(), self.collide_mine(), self.collide_enemy()]):
-            self.explode()
-
-        # self.pos += self.vel
-        # self.rect.center = self.pos
-        # self.hitrect.center = self.rect.center + self.HRoffset
-
-
 class Bubbles(Mobile_sprite):
     """Shelved"""
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
 
+        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        # self.add_to_map_layer(map_layer)
         self.current_animation = self.game.effects_images[self.refkey]
         self.timer = randrange(-4, 0)
         self.vel = vec(0, 0)
@@ -487,18 +480,15 @@ class Player(Mobile_sprite):
     stamina = 100
     rate_of_fire = 0.4  # rate at which player shoots (seconds)
 
-    weaponclasses = {'harpoon': Harpoon,
-                     'torpedo': Torpedo
-                     }
-    weaponindex = [key for index, key in enumerate(weaponclasses)]  # ordered list of weapon keys
-
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
         super().__init__(game, x, y, map_layer, image_dict, refkey)
+        self.add_to_map_layer(map_layer)
         self.score = 0
         self.hitpoints = Player.hitpoints
         self.stamina = Player.stamina
 
-        # self.torpedolauncher = False
+        self.weaponindex = [key for index, key in enumerate(game.weapon_configs)]  # ordered list of weapon keys
         self.torpedos = 0
         # self.image.fill(RED)
         self.vel = vec(0, 0)
@@ -510,13 +500,13 @@ class Player(Mobile_sprite):
 
         self.last_shot = 0  # get self.timer at instant player shoots to control fire_rate
         self.dead = False
-        self.current_weapon = 'harpoon'  # Default weaponclassed key
+        self.current_weapon = 'harpoon'  # Default weaponclass key
         self.weaponstate = {'harpoon': True,
                             'torpedo': True,
                             'plasmagun': False}
 
         self.ammo = {'harpoon': 200,
-                     'torpedo': 5}
+                     'torpedo': 500}
 
     def apply_clamps(self):
 
@@ -535,11 +525,8 @@ class Player(Mobile_sprite):
     def axial_movement(self, keys):
 
         """Movement in 8 directions controlled with keys only"""
-        # keys = pygame.key.get_pressed()
-        unit_vel = vec(0, 0)
-        # verticalKeys = [keys[pygame.K_DOWN], keys[pygame.K_UP]]
-        # horizontalKeys = [keys[pygame.K_RIGHT], keys[pygame.K_LEFT]]
 
+        unit_vel = vec(0, 0)
         verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
         horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
 
@@ -555,13 +542,11 @@ class Player(Mobile_sprite):
             self.newaction = "player_swimming"
 
         self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
-        # self.vel *= self.game.dt * TARGET_FPS
         self.direction = vec(unit_vel.x, unit_vel.y) if unit_vel else self.direction
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
     def rotational_movement(self, keys):
 
-        # keys = pygame.key.get_pressed()
         unit_vel = vec(0, 0)
         self.newaction = "player_swimming"
         if keys[pygame.K_w]:
@@ -596,15 +581,11 @@ class Player(Mobile_sprite):
 
     def choose_weapon_numpad(self, index):
 
-        # index %= len(Player.weaponindex)
-        index = max(0, min(index, len(Player.weaponindex)))
+        index = max(0, min(index, len(self.weaponindex)))
 
-        weaponkey = Player.weaponindex[index-1]
+        weaponkey = self.weaponindex[index-1]
         if self.weaponstate[weaponkey]:  # if player carrying selected weapon key
             self.current_weapon = weaponkey
-            # print(self.current_weapon)
-
-        # self.current_weapon = self.weaponslist[index-1]
 
     def choose_weapon_mousewheel(self, event):
 
@@ -615,21 +596,22 @@ class Player(Mobile_sprite):
             current_index += 1
 
         current_index %= len(self.weaponindex)  # loop weaponslist
-        weaponkey = Player.weaponindex[current_index]
-        if self.weaponstate[weaponkey]:  # if player carrying selected weapon key
+        weaponkey = self.weaponindex[current_index]
+        if self.weaponstate[weaponkey]:  # if player carrying selected weapon
             self.current_weapon = weaponkey
-            # print(self.current_weapon)
 
     def shoot(self, keys):
 
         if pygame.mouse.get_pressed()[0] or keys[pygame.K_LCTRL]:
-            # if interval_trigger(self.game.elapsed_time, Player.rate_of_fire, self.game.dt):
             if self.game.elapsed_time - self.last_shot > Player.rate_of_fire:
                 self.last_shot = self.game.elapsed_time * 1
+
                 if self.ammo[self.current_weapon] > 0:
-                    missile_startpos = self.pos + 5*self.direction.normalize()  # start position offset from player.rect by 5 pixels
-                    missile = Player.weaponclasses[self.current_weapon](self.game, missile_startpos.x, missile_startpos.y, 'weapons', self.game.weapons_images, self.current_weapon)
-                    self.game.all_sprites.add(missile)
+                    #  TODO: vary missile velocity marginally
+                    start_pos = self.pos + 10 * self.direction.normalize()  # start position offset from player.rect by 10 pixels
+                    missile = self.game.objectpools[self.current_weapon].borrow_object(start_pos.x, start_pos.y)
+                    missile.activate(self)
+
                     self.ammo[self.current_weapon] -= 1
                     choice(self.game.weapon_shoot_sounds[self.current_weapon]).play()
                 else:
@@ -645,14 +627,14 @@ class Player(Mobile_sprite):
 
         for ref in self.adjacent_grids:
 
-            for sprite in self.game.map.layers['weapons'][ref]:
+            for sprite in self.game.map.layers['obstacles'][ref]:
                 if sprite.refkey == 'mine':
                     displacement = vec(sprite.rect.center) - vec(self.rect.center)
                     if displacement.length() < sprite.affect_rad:
                         sprite.active = True  # if player within affect_rad activates mine countdown timer
 
     def collide_pick_up(self):
-
+        # TODO Object pool for pickups
         hits = self.collide_sprites('pickups')
         if hits:
             hits[0].apply_pickup()
@@ -669,7 +651,7 @@ class Player(Mobile_sprite):
 
         if self.damaged:
             try:
-                self.image.fill((255, 0, 0, next(self.damage_alpha)), special_flags= pygame.BLEND_RGBA_MULT)
+                self.image.fill((255, 0, 0, next(self.damage_alpha)), special_flags = pygame.BLEND_RGBA_MULT)
             except:
                 self.damaged = False
 
@@ -683,20 +665,10 @@ class Player(Mobile_sprite):
         self.rot_speed = 0
 
         # Check platform collision and update rect
-        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()  # return list of current and adjacent gridrefs
-
-        self.collide_platforms(0)  # check horizontal collision
-        self.collide_platforms(1)  # check vertical collision
-
-        # check sprite collisions
-        self.collide_pick_up()
-        self.collide_mine()
-        self.collide_enemy()
 
         # Player controls
         keys = pygame.key.get_pressed()
-        # events = pygame.event.get()
 
         if not self.damaged:
             self.axial_movement(keys)
@@ -707,15 +679,19 @@ class Player(Mobile_sprite):
         else:
             self.newaction = "player_hurt"
 
+        self.collide_platforms(0)  # check horizontal collision
+        self.collide_platforms(1)  # check vertical collision
+
+        # check sprite collisions
+        self.collide_pick_up()
+        self.collide_mine()
+        self.collide_enemy()
+
         self.apply_clamps()
         self.death()
 
-        # self.pos += self.vel
-        # self.vel = vec(8, 0)
-        # update player animation reel
         self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.player_images[self.actionvar]
-
         # check if sprite will move to new grid on next update
 
 
@@ -724,10 +700,12 @@ class Enemy(Mobile_sprite):
     num_of_mobs = 0
     mob_damage = 2  # deducted from player health (damage inflicted)
     antiGrav = 1.2  # constant of accn which repels mobs away from each other within avoid_rad
+    hitpoints = 10
 
     deathanimation = 'enemydeath'
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
         super().__init__(game, x, y, map_layer, image_dict, refkey)
         self.start_pos = vec(x, y)
         self.anti_g = vec(0, 0)  # TESTING only
@@ -754,7 +732,6 @@ class Enemy(Mobile_sprite):
         for ref in self.adjacent_grids:
             for ptf in self.game.map.layers['platforms'][ref]:
                 displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
-                # anti_g = -displacement * (1/ displacement.length()**2) / self.__class__.mass  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
                 anti_g = -displacement * (self.__class__.mass / displacement.length()**2)  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
                 self.vel += anti_g
                 self.anti_g = anti_g  # TESTING only (drawing)
@@ -766,7 +743,7 @@ class Enemy(Mobile_sprite):
             for mob in self.game.map.layers['enemies'][ref]:  # loop through mobs in current grid
                 if mob != self:  # exclude self
                     displacement = mob.pos - self.pos
-                    anti_g = -displacement * (Enemy.antiGrav / displacement.length())**2
+                    anti_g = -displacement * (Enemy.antiGrav*4 / displacement.length())**2
                     self.vel += anti_g
 
     def collide_walls(self):
@@ -802,9 +779,6 @@ class Enemy(Mobile_sprite):
     def idle_swim(self, territory_rad):
         """ Swim towards random points (targets) on screen when not chasing player, other mobs etc"""
         switch_target = False
-        # if self.target_vec.length() < self.rect.width:  # if within 1 x width of the target
-        #     switch_target = True
-
         if self.vel.length_squared() < 1:
             switch_target = True
 
@@ -841,15 +815,6 @@ class Enemy(Mobile_sprite):
                         return True
 
         return False
-        # self.target = target
-
-
-                        # switch target perpendicular
-                        # self.target.x = self.target.y - self.pos.y + self.pos.x
-                        # self.target.y = self.target.x - self.pos.x + self.pos.y
-
-                        # self.target.x = ptf.rect.centerx + ptf.rect.centery - self.pos.y
-                        # self.target.y = ptf.rect.centery + ptf.rect.centerx - self.pos.x
 
     def take_damage(self, points_lost):
 
@@ -870,15 +835,9 @@ class Enemy(Mobile_sprite):
 
     def update(self):
 
-        # self.assign_sprite_to_grid()
         self.get_adjacent_grids()
         self.idle_swim(self.__class__.territory_rad)
         self.chase_player()
-        # if (self.game.player.pos - self.pos).length_squared() < self.chase_player_rad**2:
-        #     target = vec(self.game.player.rect.centerx, self.game.player.rect.centery)
-            # if not self.check_intersect(self.pos, target):
-            #     self.target = target
-        # self.check_intersect(target)
         self.get_target_vector()  # find new target vector
         self.chase_target()
         self.avoid_walls()
@@ -887,11 +846,10 @@ class Enemy(Mobile_sprite):
 
         self.death()
 
-        # self.pos += self.vel
-
 
 class Daddyfish(Enemy):
 
+    map_layer = 'enemies'
     hitpoints = 100
     territory_rad = 1472  # 4 * map.gridwidth
     maxspeed = 8
@@ -906,11 +864,11 @@ class Daddyfish(Enemy):
     deathanimation = 'enemydeath4x4'
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
         super().__init__(game, x, y, map_layer, image_dict, refkey)
 
         self.hitpoints = Daddyfish.hitpoints
         self.vel = vec(1, 0)
-        # self.deathanimation = self.game.effects_images['enemydeath4x4']
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
 
     def chase_target(self):
@@ -928,6 +886,7 @@ class Daddyfish(Enemy):
 
 class Dartfish(Enemy):
 
+    map_layer = 'enemies'
     hitpoints = 10
     vel = vec(6, 0)  # initial velocity
     max_speed = 14
@@ -946,6 +905,7 @@ class Dartfish(Enemy):
     geo_pro = e ** (b * theta)  # geometric increase/ decrease of turning radius from origin for every increment
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
         super().__init__(game, x, y, map_layer, image_dict, refkey)
         self.hitpoints = Dartfish.hitpoints
         self.vel = Dartfish.vel
@@ -987,11 +947,13 @@ class Dartfish(Enemy):
 
 class Spinefish(Dartfish):
 
+    map_layer = 'enemies'
     hitpoints = 20
     vel = vec(4, 0)  # initial velocity
     max_speed = 12
 
     def __init__(self, game, x, y, map_layer, image_dict, refkey):
+
         super().__init__(game, x, y, map_layer, image_dict, refkey)
 
         self.vel = Spinefish.vel
