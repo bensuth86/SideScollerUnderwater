@@ -1,11 +1,10 @@
 import pygame
-from math import e, log
+from math import e, log, pi
 from random import choice, randrange
 from itertools import chain
 
-from helpers.spritesheet_functions import *
-from helpers.vector_functions import *
-from helpers.interval_trigger import *
+from .config import PICKUP_CATGRY
+from .helpers import rect_to_vectors, sign, interval_trigger, switch_interval, vec_intersect, vec_trans, get_radius_vector, get_angleii, turn_direction
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
 
@@ -22,6 +21,7 @@ class Static_sprite(pygame.sprite.Sprite):
         # self.hitrect = pygame.Rect(x, y, w, h)
         self.rect.topleft = (self.pos.x, self.pos.y)
         self.hitrect = self.rect.copy()
+        self.map_layer = self.__class__.map_layer
 
     def get_gridref(self):
 
@@ -44,9 +44,8 @@ class Static_sprite(pygame.sprite.Sprite):
                 gridref = self.game.map.x_coords[i] + self.game.map.y_coords[j]
                 self.adjacent_grids.append(gridref)
 
-    def add_to_map_layer(self, map_layer):
+    def add_to_map_layer(self):
 
-        self.map_layer = map_layer
         self.gridref = self.get_gridref()
         self.game.map.layers[self.map_layer][self.gridref].add(self)  # add sprite to new grid
 
@@ -55,25 +54,30 @@ class Platform(Static_sprite):
     """Wall sprite; player, mobs can't pass through.  Data read from TiledTile Layers within map tmx file.  Individual platform sprites
     have no image- only used for collision detection, anti-g"""
 
-    def __init__(self, game, x, y, w, h, map_layer):
+    map_layer = 'platforms'
+
+    def __init__(self, game, x, y, w, h):
         """Generates a single platform tile."""
         super().__init__(game, x, y, w, h)
         self.rect_sides = rect_to_vectors(self.rect)  # store rect sides as list of position vectors for vector intersect
-        self.add_to_map_layer(map_layer)
+        self.add_to_map_layer()
 
 
 class Pick_up(Static_sprite):
     """Data read from Object Layers within map tmx file:  apply_pickup method calls lamda function corresponding to pickup cat"""
-    def __init__(self, game, x, y, w, h, image, map_layer, pickup_cat):
+
+    map_layer = 'pickups'
+
+    def __init__(self, game, x, y, w, h, image, pickup_cat):
 
         super().__init__(game, x, y, w, h)
         self.image = image
         self.pickup_cat = pickup_cat
-        self.add_to_map_layer(map_layer)
+        self.add_to_map_layer()
 
     def apply_pickup(self):
 
-        update_inst = self.game.PICKUP_CATGRY[self.pickup_cat]  # apply lambda function for pickup_cat
+        update_inst = PICKUP_CATGRY[self.pickup_cat]  # apply lambda function for pickup_cat
         update_inst(self.game.player)
         self.game.player.score += 50
 
@@ -88,16 +92,17 @@ class Mobile_sprite(Static_sprite):
     damage_alpha = [i for i in range(0, 255, 55)]  # setup sequence of alpha channel (transparency) values to iterate through upon receiving damage
     # damage alpha chain from 0 to 255 in steps of 55
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
         pygame.sprite.Sprite.__init__(self)
         self.game = game
-        self.ref_image = image_dict[refkey][0]  # reference original image for image transformation (flip/ rotate)
-        self.image = image_dict[refkey][0]
+        # self.image_dict = image_dict
+        self.ref_image = game.mobile_sprite_images[self.__class__.refkey][0]  # reference original image for image transformation (flip/ rotate)
+        self.image = game.mobile_sprite_images[self.__class__.refkey][0]
         self.rect = self.image.get_rect()
         self.pos = vec(x + self.rect.width / 2, y + self.rect.height / 2)
         self.rect.center = self.pos
-        self.refkey = refkey  # key name for sprite map layer, image dictionary
+        # self.refkey = refkey  # key name for sprite map layer, image dictionary
         self.HRoffset = 0  # hitrect offset from sprite rect centre
         self.radius = 0.75 * ((self.rect.width + self.rect.height) / 4)  # for collision detection (collide_circle) between mobile sprites e.g. player and mobs
         self.rect_rtn = 0  # rotate sprite rect and image
@@ -202,6 +207,7 @@ class Mobile_sprite(Static_sprite):
             try:
                 #  fill sprite image with increasing alpha channel values.  In addition apply special flag to blend the image
                 self.image.fill((255, 0, 0, next(self.damage_alpha)), special_flags = pygame.BLEND_RGBA_MULT)
+
             except:  # exception raised once reach end of the damage_alpha chain
                 self.damaged = False
 
@@ -230,11 +236,11 @@ class Mobile_sprite(Static_sprite):
 
 class Missile(Mobile_sprite):
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
         self.direction = vec(1, 0)
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
-        self.current_animation = self.game.weapons_images[refkey]
+        super().__init__(game, x, y)
+        self.current_animation = self.game.mobile_sprite_images[self.__class__.refkey]
         self.HRoffset = 0.5*self.rect.width # offset from rect.center
 
     def setup_hitrect(self):
@@ -256,10 +262,11 @@ class Missile(Mobile_sprite):
 class Harpoon(Missile):
 
     map_layer = 'weapons'
+    refkey = 'harpoon'
     runspeed = 25
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+    def __init__(self, game, x, y):
+        super().__init__(game, x, y)
 
     def collide_walls(self):
 
@@ -299,11 +306,12 @@ class Harpoon(Missile):
 class Torpedo(Missile):
 
     map_layer = 'weapons'
+    refkey = 'torpedo'
     runspeed = 20
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
         self.affect_rad = 4 * game.map.tilesize  # radius for area of affect.  Countdown timer activated if player within affect_rad
         self.damage_constant = (0.5 * self.affect_rad) ** 3 / 2  # constant for damage to sprites within affect_rad inversely proportional to distance squared
         self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
@@ -382,18 +390,19 @@ class Torpedo(Missile):
 class Mine(Mobile_sprite):
 
     map_layer = 'obstacles'
+    refkey = 'mine'
 
     """ damage_constant formula is fixed- DO NOT ALTER.  Only dependent on affect_rad"""
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
 
         self.affect_rad = 9 * game.map.tilesize  # radius for area of affect.  Countdown timer activated if player within affect_rad
         self.damage_constant = (0.5 * self.affect_rad) ** 3 / 2  # constant for damage to sprites within affect_rad inversely proportional to distance squared
         self.active = False
         self.countdown = 3  # countdown timer seconds
 
-        self.current_animation = self.game.weapons_images[refkey]
+        self.current_animation = self.game.mobile_sprite_images[self.refkey]
         self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
 
         self.setup_hitrect()
@@ -447,55 +456,33 @@ class Mine(Mobile_sprite):
                 self.explode()
 
 
-class Bubbles(Mobile_sprite):
-    """Shelved"""
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
-
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
-        # self.add_to_map_layer(map_layer)
-        self.current_animation = self.game.effects_images[self.refkey]
-        self.timer = randrange(-4, 0)
-        self.vel = vec(0, 0)
-
-        self.refresh_rate = 0.2
-
-    def update(self):
-
-        self.pos += self.vel
-        self.rect.bottomleft = self.pos
-
-        if self.check_anim_end(self.current_animation):
-            respawnpoint = choice(self.game.spawnpoints)
-            self.pos.x, self.pos.y = respawnpoint[0]*self.game.map.tilesize, respawnpoint[1]*self.game.map.tilesize
-
-        if self.timer >= 0:
-            self.vel = vec(0, -8)  # velocity vector
-
-
 class Player(Mobile_sprite):
 
+    map_layer = 'players'
+    refkey = 'player_idle'
     runspeed = 8
     rot_speed = 3  # degrees per second
     hitpoints = 100
     stamina = 100
     rate_of_fire = 0.4  # rate at which player shoots (seconds)
+    weapons = ['harpoon', 'torpedo']
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
-        self.add_to_map_layer(map_layer)
+        super().__init__(game, x, y)
+        self.add_to_map_layer()
         self.score = 0
         self.hitpoints = Player.hitpoints
         self.stamina = Player.stamina
 
-        self.weaponindex = [key for index, key in enumerate(game.weapon_configs)]  # ordered list of weapon keys
+        # self.d = [key for index, key in enumerate(self.weapons)]  # ordered list of weapon keys
         self.torpedos = 0
         # self.image.fill(RED)
         self.vel = vec(0, 0)
         self.direction = vec(1, 0)
         self.actionvar = "player_idle"  # current sprite action
         self.newaction = "player_idle"  # new sprite action on e.g. keyboard input- jumping, walking etc
-        self.current_animation = game.player_images[self.actionvar]  # current animation slide (list of images)
+        self.current_animation = game.mobile_sprite_images[self.actionvar]  # current animation slide (list of images)
         self.refresh_rate = 0.15  # rate animation changes slide (0.5 - changes twice per second)
 
         self.last_shot = 0  # get self.timer at instant player shoots to control fire_rate
@@ -581,22 +568,22 @@ class Player(Mobile_sprite):
 
     def choose_weapon_numpad(self, index):
 
-        index = max(0, min(index, len(self.weaponindex)))
+        index = max(0, min(index, len(self.weapons)))
 
-        weaponkey = self.weaponindex[index-1]
+        weaponkey = self.weapons[index-1]
         if self.weaponstate[weaponkey]:  # if player carrying selected weapon key
             self.current_weapon = weaponkey
 
     def choose_weapon_mousewheel(self, event):
 
-        current_index = self.weaponindex.index(self.current_weapon)
+        current_index = self.weapons.index(self.current_weapon)
         if event.button == 4:
             current_index -= 1
         elif event.button == 5:
             current_index += 1
 
-        current_index %= len(self.weaponindex)  # loop weaponslist
-        weaponkey = self.weaponindex[current_index]
+        current_index %= len(self.weapons)  # loop weaponslist
+        weaponkey = self.weapons[current_index]
         if self.weaponstate[weaponkey]:  # if player carrying selected weapon
             self.current_weapon = weaponkey
 
@@ -690,8 +677,8 @@ class Player(Mobile_sprite):
         self.apply_clamps()
         self.death()
 
-        self.change_action(self.game.player_images, self.newaction)  # change self.actionvar to new action
-        self.current_animation = self.game.player_images[self.actionvar]
+        self.change_action(self.game.mobile_sprite_images, self.newaction)  # change self.actionvar to new action
+        self.current_animation = self.game.mobile_sprite_images[self.actionvar]
         # check if sprite will move to new grid on next update
 
 
@@ -704,9 +691,9 @@ class Enemy(Mobile_sprite):
 
     deathanimation = 'enemydeath'
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
         self.start_pos = vec(x, y)
         self.anti_g = vec(0, 0)  # TESTING only
         self.chase_player_rad = 2 * self.game.map.gridwidth  # chase player if within radius
@@ -715,7 +702,7 @@ class Enemy(Mobile_sprite):
 
         self.displacement = vec(0, 0)
 
-        self.current_animation = self.game.mob_images[self.refkey]
+        self.current_animation = self.game.mobile_sprite_images[self.refkey]
         self.refresh_rate = 0.2
 
         self.target = vec(0, 0)
@@ -850,6 +837,7 @@ class Enemy(Mobile_sprite):
 class Daddyfish(Enemy):
 
     map_layer = 'enemies'
+    refkey = 'daddyfish'
     hitpoints = 100
     territory_rad = 1472  # 4 * map.gridwidth
     maxspeed = 8
@@ -863,9 +851,9 @@ class Daddyfish(Enemy):
 
     deathanimation = 'enemydeath4x4'
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
 
         self.hitpoints = Daddyfish.hitpoints
         self.vel = vec(1, 0)
@@ -887,6 +875,7 @@ class Daddyfish(Enemy):
 class Dartfish(Enemy):
 
     map_layer = 'enemies'
+    refkey = 'dartfish'
     hitpoints = 10
     vel = vec(6, 0)  # initial velocity
     max_speed = 14
@@ -904,9 +893,9 @@ class Dartfish(Enemy):
     theta = pi/60  # angle subtended every iteration
     geo_pro = e ** (b * theta)  # geometric increase/ decrease of turning radius from origin for every increment
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
         self.hitpoints = Dartfish.hitpoints
         self.vel = Dartfish.vel
         self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
@@ -948,13 +937,14 @@ class Dartfish(Enemy):
 class Spinefish(Dartfish):
 
     map_layer = 'enemies'
+    refkey = 'spinefish'
     hitpoints = 20
     vel = vec(4, 0)  # initial velocity
     max_speed = 12
 
-    def __init__(self, game, x, y, map_layer, image_dict, refkey):
+    def __init__(self, game, x, y):
 
-        super().__init__(game, x, y, map_layer, image_dict, refkey)
+        super().__init__(game, x, y)
 
         self.vel = Spinefish.vel
         self.hitpoints = 20

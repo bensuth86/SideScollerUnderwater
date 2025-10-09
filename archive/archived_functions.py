@@ -1,7 +1,6 @@
 def get_gridsi(self, rect):
     """ Return grid or multiple grids if between boundaries to check for collisions"""
 
-    # TODO update function for include more than 2 grids for rects longer than GRIDSIZE
     def lookupgrid(pos):
         x, y = int(pos[0]), int(pos[1])
         x = min((self.game.map.width - 2 * TILESIZE), x)  # limit possible x pos to within map width (2340)
@@ -84,3 +83,39 @@ def switch_direction(self):
         print(direction)
 
     return direction
+
+
+def flip_images(frame, flip):  # (list of images, (bool x, bool y))
+
+    def apply(image):
+        image = transform.flip(image, flip[0], flip[1])
+        return image
+
+    newframe = map(apply, frame)
+    newframe = list(newframe)
+    return list(newframe)
+
+
+def rotate_images(frame, rotation):  # angle
+
+    def apply(image):
+        image = transform.rotate(image, rotation)
+        return image
+
+    newframe = map(apply, frame)
+    newframe = list(newframe)
+    return list(newframe)
+
+
+def readSpriteData(filename):
+
+    sprites = {}
+
+    with open(filename, 'r') as f:
+        headings = f.readline().strip('\n').split('|')  # read first line of file
+        for line in f:
+            listDetails = line.strip('\n').split('|')
+            sprites[listDetails[0]] = {headings[1]: int(listDetails[1])}
+            sprites[listDetails[0]].update({headings[2]: int(listDetails[2])})
+
+    return sprites

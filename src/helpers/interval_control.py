@@ -12,11 +12,3 @@ def switch_interval(n, interval):
     output = (n // interval) % 2
 
     return -output
-
-# def trigger(time_elapsed, interval, dt):
-#
-#     if (time_elapsed+dt) % interval < time_elapsed % interval:
-#         print(time_elapsed, 'Boo!')
-#         yield True
-#
-#     # For every randrange seconds switch from 1 to -1 for randrange duration

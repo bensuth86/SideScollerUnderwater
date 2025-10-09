@@ -1,20 +1,18 @@
-from sprites import *
+from pygame import sprite, Vector2 as vec
 
 
-class ObjectPool(pygame.sprite.Group):
+class ObjectPool(sprite.Group):
     """A reusable object pool for mobile sprite management (e.g., missiles, enemies, map obstacles)."""
 
     refill_threshold = 3  # Number of objects below which we attempt refill
 
-    def __init__(self, game, sprite_class, size, map_layer, image_dict, refkey):
+    def __init__(self, game, sprite_class, size):
 
-        # pygame.sprite.Group.__init__(self)
         super().__init__()
         self.game = game
         self.sprite_class = sprite_class
-        self.map_layer = map_layer
-        self.image_dict = image_dict
-        self.refkey = refkey
+        self.map_layer = sprite_class.map_layer
+        self.refkey = sprite_class.refkey
 
         for _ in range(size):
             self.add_new_sprite()
@@ -40,7 +38,7 @@ class ObjectPool(pygame.sprite.Group):
         self.game.hold_sprites.remove(sprite_obj)
         self.game.map.layers[sprite_obj.map_layer][sprite_obj.gridref].remove(sprite_obj)
         # sprite_obj.pos = vec(0, 0)
-        sprite_obj.change_action(self.image_dict, self.refkey)
+        sprite_obj.change_action(self.game.mobile_sprite_images, self.refkey)
 
     def activate_sprite(self, sprite, x, y):
         """Prepare sprite for active use; reposition, add to map layer, drawing layer."""
@@ -48,12 +46,12 @@ class ObjectPool(pygame.sprite.Group):
         sprite.rect.center = sprite.pos
         sprite.hitrect.center = sprite.rect.center
 
-        sprite.add_to_map_layer(self.map_layer)
+        sprite.add_to_map_layer()
         self.game.all_sprites.add(sprite)
 
     def add_new_sprite(self):
         """Create and add a new sprite to the pool."""
-        sprite = self.sprite_class(self.game, 0, 0, self.map_layer, self.image_dict, self.refkey)
+        sprite = self.sprite_class(self.game, 0, 0)
         self.add(sprite)
 
     def refill_if_needed(self):

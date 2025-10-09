@@ -2,17 +2,21 @@
 
 import xml.etree.ElementTree as ET
 import pygame
-from collections import defaultdict
-from settings import *
+from os import path
+from pathlib import Path
+
+from ..config import IMAGE_PATH
+
+# Resolve paths relative to project root dir
 
 
 class SpriteSheet:
     """ load an atlas image (spritesheet) pass an associated XML file to dictionary self.animation_frames"""
     def __init__(self, filename):
 
-        imgfile = path.join(repos, 'Images', filename + ".png")
+        imgfile = path.join(IMAGE_PATH, filename + ".png")
         self.spritesheet = pygame.image.load(imgfile).convert_alpha()  # convert_alpha maintains transparent pixels whereas convert() replaces them with black pixels
-        self.xmlfile = path.join(repos, 'Images', filename + ".xml")
+        self.xmlfile = path.join(IMAGE_PATH, filename + ".xml")
 
     def get_image(self, x, y, width, height):
 
@@ -22,7 +26,7 @@ class SpriteSheet:
         return image
 
     def get_sprite_images(self):
-
+        """get images from spritesheet and cache image surf to dictionary - dictionary ordered by category, then nested subcat if applicable"""
         if self.xmlfile:
             tree = ET.parse(self.xmlfile)
             images = {}
