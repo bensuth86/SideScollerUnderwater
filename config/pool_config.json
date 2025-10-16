@@ -1,0 +1,26 @@
+{
+  "torpedo": {
+    "class": "Torpedo",
+    "size": 20
+  },
+  "harpoon": {
+    "class": "Harpoon",
+    "size": 25
+  },
+  "mine": {
+    "class": "Mine",
+    "size": 15
+  },
+  "daddyfish": {
+    "class": "Daddyfish",
+    "size": 15
+  },
+  "dartfish": {
+    "class": "Dartfish",
+    "size": 15
+  },
+  "spinefish": {
+    "class": "Spinefish",
+    "size": 15
+  }
+}

@@ -3,7 +3,7 @@ from math import e, log, pi
 from random import choice, randrange
 from itertools import chain
 
-from .config import PICKUP_CATGRY
+from .pickup_config import PICKUP_CATGRY
 from .helpers import rect_to_vectors, sign, interval_trigger, switch_interval, vec_intersect, vec_trans, get_radius_vector, get_angleii, turn_direction
 
 vec = pygame.Vector2  # 2D vector - x = vec.x  y = vec.y
@@ -63,7 +63,7 @@ class Platform(Static_sprite):
         self.add_to_map_layer()
 
 
-class Pick_up(Static_sprite):
+class Pickup(Static_sprite):
     """Data read from Object Layers within map tmx file:  apply_pickup method calls lamda function corresponding to pickup cat"""
 
     map_layer = 'pickups'
@@ -77,9 +77,13 @@ class Pick_up(Static_sprite):
 
     def apply_pickup(self):
 
-        update_inst = PICKUP_CATGRY[self.pickup_cat]  # apply lambda function for pickup_cat
-        update_inst(self.game.player)
-        self.game.player.score += 50
+        effect_func = PICKUP_CATGRY.get(self.pickup_cat)
+        print(f"[INFO] Player picked up '{self.pickup_cat}'")
+        if effect_func:
+            effect_func(self.game.player)
+            self.kill()  # Remove from all sprite groups
+        else:
+            print(f"[WARNING] Unknown pickup category: '{self.pickup_cat}'")
 
     def draw(self):
 
@@ -282,7 +286,7 @@ class Harpoon(Missile):
             hits[0].take_damage(10)
 
             self.game.objectpools[self.refkey].rtrn_object(self)
-            choice(self.game.effects_sounds['mob_hit']).play()
+            choice(self.game.ambient_sounds['mob_hit']).play()
 
     def collide_mines(self):
 
@@ -361,7 +365,7 @@ class Torpedo(Missile):
 
         # update animation reel to explosion animation
         self.change_action(self.game.effects_images, 'explosion')  # change self.actionvar to new action
-        choice(self.game.effects_sounds['torpedo_explode']).play()
+        choice(self.game.ambient_sounds['torpedo_explode']).play()
 
     def inflict_damage(self, maplayerkey, v_const):
 
@@ -435,7 +439,7 @@ class Mine(Mobile_sprite):
         # update animation reel to explosion animation
         self.change_action(self.game.effects_images, 'explosion4x4')  # change self.actionvar to new action
 
-        choice(self.game.effects_sounds['mine_explode']).play()
+        choice(self.game.ambient_sounds['mine_explode']).play()
 
     def inflict_damage(self, maplayerkey, v_const):
 
@@ -475,6 +479,10 @@ class Player(Mobile_sprite):
         self.hitpoints = Player.hitpoints
         self.stamina = Player.stamina
 
+        self.control_scheme = {"axial": self.axial_movement,
+                               "rotational": self.rotational_movement}
+        self.current_scheme = "axial"
+
         # self.d = [key for index, key in enumerate(self.weapons)]  # ordered list of weapon keys
         self.torpedos = 0
         # self.image.fill(RED)
@@ -500,71 +508,106 @@ class Player(Mobile_sprite):
         self.hitpoints = max(0, min(self.hitpoints, Player.hitpoints))
         self.stamina = max(0, min(self.stamina, Player.stamina))
 
-    def get_mouse(self, sensitivity):  #
-        """ Set sensitivity range to be betweeen 0.1 - 2 for current setup"""
-        pygame.mouse.set_visible(False)
-        movement = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
+    def toggle_controls(self):
 
-        scrollH = 1 / 10 * movement[0] * sensitivity  # set x axis movement sensitivity
+        schemes = list(self.control_scheme.keys())
+        current_index = schemes.index(self.current_scheme)
+        next_index = current_index + 1
+        next_index %= len(schemes)
+
+        self.current_scheme = schemes[next_index]
+        print(f"[INFO] Control scheme switched to '{self.current_scheme}'")
+
+    def get_mouse_rotation(self):  #
+        """ Handle mouse movement with sensitivity and inversion: sensitivity range set betweeen 0.1 - 2 for current setup"""
+        settings = self.game.controls["mouse"]["settings"]
+        sensitivity = settings.get("sensitivity", 2.0)
+        invert_y = settings.get("invert_y", False)
+
+        pygame.mouse.set_visible(False)
+        dx, dy = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
+
+        scrollH = dx / 10 * sensitivity  # set x axis movement sensitivity
         scrollH = max(min(15, scrollH), -15)  # set to be between 10-20
-        return scrollH  # return horizontal mouse movement
+        if invert_y:
+            dy = -dy
+        return scrollH, dy  # return horizontal mouse movement
 
     def axial_movement(self, keys):
 
         """Movement in 8 directions controlled with keys only"""
 
         unit_vel = vec(0, 0)
-        verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
-        horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
+        move = self.game.controls["keyboard"]["movement"]
+        dash_key = self.game.controls["keyboard"]["actions"]["dash"]
+
+        # verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
+        # horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
+        verticalKeys = [keys[move["forward"]], keys[move["backward"]]]
+        horizontalKeys = [keys[move["left"]], keys[move["right"]]]
 
         self.newaction = "player_idle"
         if sum(verticalKeys) == 1:
-            unit_vel += verticalKeys[0] * vec(0, 1)  # up
-            unit_vel += verticalKeys[1] * vec(0, -1)  # down
+            unit_vel += verticalKeys[0] * vec(0, -1)  # up
+            unit_vel += verticalKeys[1] * vec(0, 1)  # down
             self.newaction = "player_swimming"
 
         if sum(horizontalKeys) == 1:
-            unit_vel += horizontalKeys[0] * vec(1, 0)  # left
-            unit_vel += horizontalKeys[1] * vec(-1, 0)  # right
+            unit_vel += horizontalKeys[0] * vec(-1, 0)  # left
+            unit_vel += horizontalKeys[1] * vec(1, 0)  # right
             self.newaction = "player_swimming"
 
         self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
         self.direction = vec(unit_vel.x, unit_vel.y) if unit_vel else self.direction
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
 
+        if keys[dash_key]:
+            self.dash()
+        else:
+            self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 1  # recover stamina
+
     def rotational_movement(self, keys):
 
         unit_vel = vec(0, 0)
         self.newaction = "player_swimming"
-        if keys[pygame.K_w]:
+        move = self.game.controls["keyboard"]["movement"]
+        dash_key = self.game.controls["keyboard"]["actions"]["dash"]
+
+        if keys[move["forward"]]:
             unit_vel = vec(0, 1)
-            self.newaction = "player_rush"
-        elif keys[pygame.K_s]:
+            self.newaction = "player_swimming"
+        elif keys[move["backward"]]:
             unit_vel = vec(0, -1 / 2)
             self.newaction = "player_swimming"
-        if keys[pygame.K_a]:
+
+        if keys[move["left"]]:
             unit_vel = vec(3 / 4, 0)
             self.newaction = "player_swimming"
-        elif keys[pygame.K_d]:
+        elif keys[move["right"]]:
             unit_vel = vec(-3 / 4, 0)
             self.newaction = "player_swimming"
-
-        scrollH = self.get_mouse(2)
+        # TODO: Option to invert mouse y axis
+        scrollH, _ = self.get_mouse_rotation()
         self.direction = self.direction.rotate(scrollH)
         angle = self.direction.angle_to(vec(0, 1))
 
         self.vel = (unit_vel * Player.runspeed).rotate(-angle) if unit_vel else vec(0, 0)
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # rotate sprite
 
-    def dash(self, keys):
-
-        if keys[pygame.K_SPACE] and self.vel:
-            if self.stamina > 0:
-                self.vel *= 1.5
-                self.stamina -= interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 5
-                self.newaction = 'player_rush'
+        if keys[dash_key]:
+            if unit_vel[1] > 0:
+                self.dash()
         else:
             self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 1  # recover stamina
+
+    def dash(self):
+
+        if self.stamina > 0:
+            self.vel *= 1.5
+            self.stamina -= interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 5
+            self.newaction = 'player_rush'
+        # else:
+        #     self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 1  # recover stamina
 
     def choose_weapon_numpad(self, index):
 
@@ -588,8 +631,8 @@ class Player(Mobile_sprite):
             self.current_weapon = weaponkey
 
     def shoot(self, keys):
-
-        if pygame.mouse.get_pressed()[0] or keys[pygame.K_LCTRL]:
+        shoot_key = self.game.controls["keyboard"]["actions"]["shoot"]
+        if pygame.mouse.get_pressed()[0] or keys[shoot_key]:
             if self.game.elapsed_time - self.last_shot > Player.rate_of_fire:
                 self.last_shot = self.game.elapsed_time * 1
 
@@ -600,9 +643,9 @@ class Player(Mobile_sprite):
                     missile.activate(self)
 
                     self.ammo[self.current_weapon] -= 1
-                    choice(self.game.weapon_shoot_sounds[self.current_weapon]).play()
+                    choice(self.game.ambient_sounds[self.current_weapon]).play()
                 else:
-                    choice(self.game.weapon_shoot_sounds['gun_reload']).play()
+                    choice(self.game.ambient_sounds['gun_reload']).play()
 
     def collide_enemy(self):
 
@@ -625,7 +668,6 @@ class Player(Mobile_sprite):
         hits = self.collide_sprites('pickups')
         if hits:
             hits[0].apply_pickup()
-            hits[0].kill()  # delete sprite
 
     def take_damage(self, points_lost):
 
@@ -658,9 +700,9 @@ class Player(Mobile_sprite):
         keys = pygame.key.get_pressed()
 
         if not self.damaged:
-            self.axial_movement(keys)
-            # self.rotational_movement(keys)
-            self.dash(keys)
+
+            self.control_scheme.get(self.current_scheme)(keys)  # movement control scheme
+            # self.dash(keys)
             self.shoot(keys)
 
         else:
@@ -812,7 +854,7 @@ class Enemy(Mobile_sprite):
     def death(self):
 
         if self.hitpoints <= 0:
-            choice(self.game.effects_sounds['mob_death']).play()
+            choice(self.game.ambient_sounds['mob_death']).play()
             self.rect_rtn = 0  # set back to horizontal
             self.remove(self.game.map.layers['enemies'][self.gridref])
             self.add(self.game.hold_sprites)

@@ -1,15 +1,17 @@
 # Project setup
 
+import json
 import pygame
 import time
 from os import path
+from pathlib import Path
 
 from .settings import *
-from .config import IMAGE_PATH, MAPS_PATH, MUSIC_PATH, AMBIENT_PATH, WEAPONSND_PATH, MOBILE_SPRITE_CLASSES
-from .helpers import resolve_class, resize_images, load_spritesheets
+from .helpers import resolve_class, resize_images, load_spritesheets, load_json, _map_keyboard_controls, _map_mouse_controls
 from .systems import TiledMap, Camera, ObjectPool, Mesh
 from .ui.hud import draw_sprite_bar, draw_text, draw_grid
-from .sprites import Pick_up, Player, Missile
+from src import sprites
+from .sprites import Pickup, Player, Missile
 
 
 class Game:
@@ -17,68 +19,144 @@ class Game:
     def __init__(self, screen):
 
         self.screen = screen
-        self.camera = Camera(self)
-
         self.clock = pygame.time.Clock()
         self.elapsed_time = time.time()  # from new game start
         self.dt = 0  # time elapsed for 1 mainloop
         self.running = True  # game running
 
-        # load background textures
-        self.background = pygame.image.load(path.join(IMAGE_PATH, BACKGROUND)).convert_alpha()
+        # --- Load JSON configuration ---
+        self._load_all_configs()
 
-        # load map from TiledMap #
+        # --- Core systems ---
+        self.camera = Camera(self)
+
+        # --- Load background ---
+        bg_path = self.image_path / self.image_config["images"]["background"]
+        if not bg_path.exists():
+            raise FileNotFoundError(f"Background not found: {bg_path}")
+        self.background = pygame.image.load(bg_path).convert_alpha()
+
+        # --- load map from TiledMap ---#
         PlatformClass = resolve_class('src.sprites.Platform')
-        map_dir = path.join(MAPS_PATH, 'test.tmx')
-        self.map = TiledMap(self, map_dir, PlatformClass)
-
-        # comment explaining next 2 lines
-        self.map_img = self.map.generate_map()
-        # self.map_img.set_colorkey(BLACK)  # set background to be transparent
+        map_path = self.maps_path / self.game_config["map_files"]["test"]
+        self.map = TiledMap(self, map_path, PlatformClass)
+        self.map_img = self.map.generate_map()  # Generate map image and rect
         self.map_rect = self.map_img.get_rect()
 
-        # get images from spritesheets and cache image surf to dictionary - dictionary ordered by category, then nested subcat if applicable
-        self.effects_images = load_spritesheets('effects')
+        # --- Load sprite images ---
+        self._load_images()
+
+        # --- Load sounds ---
+        self._load_sounds()
+
+        # --- Load controls ---
+        self._load_controls()
+
+        # --- Object pooling ---
+        self._init_object_pools()
+
+    def _load_all_configs(self):
+        """Load game, image, and sound configuration files."""
+        config_dir = Path("config")
+        self.game_config = load_json(config_dir / "game_config.json")
+        self.image_config = load_json(config_dir / "image_config.json")
+        self.sound_config = load_json(config_dir / "sound_config.json")
+        self.controls_config = load_json(config_dir / "controls_config.json")
+
+        print("[CONFIG] Game, image, and sound configs loaded")
+
+        # Resolve paths
+        base = Path(self.game_config["base"])
+        rel_paths = self.game_config["rel_paths"]
+
+        self.image_path = base / rel_paths["images"]
+        self.maps_path = base / rel_paths["maps"]
+        self.sounds_path = base / rel_paths["sounds"]
+
+    def _load_images(self):
+
+        """Load and cache all sprite images."""
+
+        # Effects
+        self.effects_images = load_spritesheets("effects")
+
+        # resize effects for consistent tile scaling
         self.effects_images['enemydeath4x4'] = resize_images(self.effects_images.get('enemydeath'), (4 * self.map.tilesize, 4 * self.map.tilesize))
         self.effects_images['explosion4x4'] = resize_images(self.effects_images.get('explosion'), (4 * self.map.tilesize, 4 * self.map.tilesize))
 
-        self.pickup_images = load_spritesheets('PickUps')
+        # Pickups
+        self.pickup_images = load_spritesheets("PickUps")
 
-        mobile_spritesheets = ['mobs', 'player', 'weapons']
-        self.mobile_sprite_images = load_spritesheets(*mobile_spritesheets)
+        # Mobile sprites
+        self.mobile_sprite_images = load_spritesheets("mobs", "player", "weapons")
 
-        # load sounds
-        pygame.mixer.music.load(path.join(MUSIC_PATH, MUSIC['Intro_music']))
+    def _load_sounds(self):
+        """Load music and sound effects."""
 
-        self.effects_sounds = {key: [pygame.mixer.Sound(path.join(AMBIENT_PATH, snd)) for snd in AMBIENT_SOUNDS[key]] for key in AMBIENT_SOUNDS}
-        [snd.set_volume(0.3) for snd in self.effects_sounds['torpedo_explode']]
-        [snd.set_volume(1) for snd in self.effects_sounds['mine_explode']]
-        [snd.set_volume(0.1) for snd in self.effects_sounds['mob_hit']]
+        # Music
+        music_path = self.sounds_path / "music" / self.sound_config["music"]["intro"]
+        pygame.mixer.music.load(music_path)
 
-        self.weapon_shoot_sounds = {key: [pygame.mixer.Sound(path.join(WEAPONSND_PATH, snd)) for snd in WEAPON_SHOOT_SOUNDS[key]] for key in WEAPON_SHOOT_SOUNDS}
-        [snd.set_volume(0.3) for snd in self.weapon_shoot_sounds['harpoon']]
-        [snd.set_volume(0.2) for snd in self.weapon_shoot_sounds['torpedo']]
+        # Ambient / effects sounds
+        self.ambient_sounds = {
+            key: [pygame.mixer.Sound(self.sounds_path / "ambient" / snd) for snd in snd_list]
+            for key, snd_list in self.sound_config["ambient"].items()
+        }
+        # Set volumes
+        for key, volume in self.sound_config["ambient_volume"].items():
+            for snd in self.ambient_sounds[key]:
+                snd.set_volume(volume)
+
+    def _load_controls(self):
+        """ Map the control keys - load the config file and convert the string names to pygame key constants."""
+
+        keyboard = _map_keyboard_controls(pygame, self.controls_config.get("keyboard", {}))
+        mouse = _map_mouse_controls(pygame, self.controls_config.get("mouse", {}))
+
+        self.controls = {"keyboard": keyboard, "mouse": mouse}
+
+    def _init_object_pools(self):
+        """Initialize and populate all object pools from configuration."""
+        config_path = Path("config/pool_config.json")
+
+        if not config_path.exists():
+            raise FileNotFoundError(f"Pool configuration file not found: {config_path}")
+
+        with open(config_path, "r") as f:
+            pool_config = json.load(f)
 
         self.objectpools = {}
+
+        for key, cfg in pool_config.items():
+            class_name = cfg["class"]
+            size = cfg.get("size", 10)
+
+            # Dynamically resolve class from src.sprites module
+            try:
+                sprite_class = getattr(sprites, class_name)
+            except AttributeError:
+                raise ImportError(f"Sprite class '{class_name}' not found in src.sprites")
+
+            # Create the object pool
+            pool = ObjectPool(self, sprite_class, refill_threshold=3, max_size=size)
+            pool.populate(size)
+            self.objectpools[key] = pool
+
+        print(f"[INIT] Object pools initialized from {config_path}")
 
     def new(self):
         """Start a new game; initialise all variables, load or reload map data, sprites"""
         # init sprite groups
-        self.mob_sprites = pygame.sprite.Group()
+        self.mob_sprites = pygame.sprite.Group()  # TESTING ONLY
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted- group for visual effects only
         self.all_sprites = pygame.sprite.Group()  # for drawing only
-
-        # Object pools
-        for key in MOBILE_SPRITE_CLASSES.keys():
-            SpriteClass = resolve_class(MOBILE_SPRITE_CLASSES[key])
-            self.objectpools[key] = ObjectPool(self, SpriteClass, 20)
 
         # generate static sprites from TiledMap Tile layers
         for key, ttl in self.map.tmxdata.layernames.items():  # ttl - TiledTileLayer
             if ttl.visible:
                 if key == 'pickups':
                     for pickup in ttl:
-                        pickup_sprite = Pick_up(self, pickup.x, pickup.y, pickup.width, pickup.height, pickup.image, pickup.name)
+                        pickup_sprite = Pickup(self, pickup.x, pickup.y, pickup.width, pickup.height, pickup.image, pickup.name)
                         self.all_sprites.add(pickup_sprite)
 
         # generate mobile sprites from TiledMap object layers
@@ -117,7 +195,7 @@ class Game:
 
         # """ Main game loop"""
         self.playing = True
-        # pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.play(loops=-1)
 
         while self.playing:
             # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
@@ -130,30 +208,37 @@ class Game:
             self.update()
             self.draw()
 
+    def handle_player_input(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_wheel_down, mouse_wheel_up = self.controls["mouse"]["buttons"]["scroll_down"], self.controls["mouse"]["buttons"]["scroll_up"]
+            if mouse_wheel_up <= event.button <= mouse_wheel_down:  # mouse wheel scroll
+                self.player.choose_weapon_mousewheel(event)
+
+        elif event.type == pygame.KEYDOWN:
+            numkeys = list(self.controls["keyboard"]["weapons"].values())
+            sys_keys = self.controls["keyboard"]["system"]
+            if numkeys[0] <= event.key <= numkeys[-1]:
+                weapon_index = int(event.unicode)
+                self.player.choose_weapon_numpad(weapon_index)
+
+            elif event.key == sys_keys["toggle_control_mode"]:
+                self.player.toggle_controls()
+
+            elif event.key == sys_keys["quit"]:
+                pygame.event.set_grab(False)
+                self.playing = False
+
+            elif event.key == sys_keys["exit_game"]:
+                self.playing = False
+                self.running = False
+
     def events(self):
+        pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
 
         for event in pygame.event.get():
-            # check for closing pygame window
-            # pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
-            if event.type == pygame.QUIT:
-                if self.playing:  # if in game
-                    self.playing = False  # exit game
-                self.running = False  # close pygame application
-            if event.type == pygame.MOUSEBUTTONDOWN:
-                if 4 <= event.button <= 5:  # middle mouse scroll
-                    self.player.choose_weapon_mousewheel(event)
-            if event.type == pygame.KEYDOWN:
-                if pygame.K_1 <= event.key <= pygame.K_9:
-                    weapon_index = int(event.unicode)
-                    self.player.choose_weapon_numpad(weapon_index)
-                if event.key == pygame.K_q:
-                    # exit game
-                    pygame.event.set_grab(False)  # lock keyboard and mouse input into pygame app
-                    self.playing = False
-                if event.key == pygame.K_ESCAPE:
-                    # close pygame
-                    self.playing = False
-                    self.running = False
+
+            if event.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
+                self.handle_player_input(event)
 
     def transfer_sprites(self, sprites_to_transfer):
         """ Transfer flagged sprites to new grid within their map layer"""
@@ -169,43 +254,57 @@ class Game:
 
     def update(self):
         """Game Loop - Update"""
+        # --- 1. Update camera ---
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
         # for mob in self.mob_sprites:
         #     self.camera.update(mob)
 
-        # update sprites by grid
+        # --- 2. Update active grids ---
         self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
+
+        # Collect sprites that need to move between grids
         sprites_to_transfer = []  # sprites to be moved to new grid for current update
 
-        # call mobile sprite update fnc then update new rect position
+        # --- 3. Update mobile sprites in active grids ---
+        # call sprite update method then update position
+        dt_scaled = self.dt * TARGET_FPS
         for map_layer in self.map.mobile_layers:
-            grids = self.map.layers[map_layer]  # return dictionary containing grids (sprite groups)
-            for ref in self.map.active_gridrefs:  # 'A0', 'A1', 'A2' ...
-                grids[ref].update()
-                # post sprite update call for current grid, update sprite positions and transfer sprites to new grid where applicable
-                for sprite in grids[ref]:
-                    sprite.pos += sprite.vel * self.dt * TARGET_FPS  # update position independent of frame rate
+            layer_grids = self.map.layers[map_layer]  # return dictionary containing grids (sprite groups)
 
-                    # reference sprites to be transferred to new grid
+            for grid_ref in self.map.active_gridrefs:  # 'A0', 'A1', 'A2' ...
+                grid = layer_grids[grid_ref]
+                grid.update()
+
+                for sprite in grid:
+                    # Update sprite positions (frame-rate independent)
+                    sprite.pos += sprite.vel * dt_scaled
+
+                    # Queue sprite for transfer between grids
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
 
-        self.transfer_sprites(sprites_to_transfer)  # transfer flagged sprites to new grid
+        # --- 4. Transfer sprites between grids ---
+        if sprites_to_transfer:
+            self.transfer_sprites(sprites_to_transfer)  # transfer flagged sprites to new grid
 
-        # update hold_sprites
+        # --- 5. Update hold sprites ---
+        sprites_to_return = []
+
         for sprite in self.hold_sprites:
-            sprite.vel *= 0.98  # velocity reduced each loop
+            sprite.vel *= 0.98  # apply velocity damping
             sprite.pos += sprite.vel
             sprite.hitrect.center = sprite.pos  # must update hitrect rather than rect as rect position overwritten in Mobile_sprite.transform_image()
 
-            # return sprites to object pools after 1 animation cycle
+            # Queue sprite for return to object pool if animation ended
             if sprite.check_anim_end(sprite.current_animation):
-                self.objectpools[sprite.refkey].rtrn_object(sprite)
+                sprites_to_return.append(sprite)
+            # Queue sprite for return if off-screen
+            elif sprite.gridref not in self.map.active_gridrefs:
+                sprites_to_return.append(sprite)
 
-        # return sprites to pools if they're off screen
-        for sprite in self.hold_sprites:
-            if sprite.gridref not in self.map.active_gridrefs:
-                self.objectpools[sprite.refkey].rtrn_object(sprite)
+        # --- 6. Return pooled sprites ---
+        for sprite in sprites_to_return:
+            self.objectpools[sprite.refkey].rtrn_object(sprite)
 
     def draw(self):
         """Game Loop - draw"""

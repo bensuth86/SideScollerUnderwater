@@ -1,0 +1,22 @@
+{
+  "base": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater",
+  "rel_paths": {
+    "images": "assets/Images",
+    "maps": "assets/maps",
+    "sounds": "assets/sounds",
+    "music": "assets/sounds/music",
+    "ambient": "assets/sounds/ambient",
+    "weaponsnd": "assets/sounds/weaponsnd"
+  },
+  "map_files": {
+    "test": "test.tmx"
+  },
+  "mobile_sprite_classes": {
+    "harpoon": "src.sprites.Harpoon",
+    "torpedo": "src.sprites.Torpedo",
+    "daddyfish": "src.sprites.Daddyfish",
+    "dartfish": "src.sprites.Dartfish",
+    "spinefish": "src.sprites.Spinefish",
+    "mine": "src.sprites.Mine"
+  }
+}

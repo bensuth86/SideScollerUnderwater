@@ -1,0 +1,38 @@
+{
+  "keyboard": {
+    "movement": {
+      "forward": "K_w",
+      "backward": "K_s",
+      "left": "K_a",
+      "right": "K_d"
+    },
+    "actions": {
+      "dash": "K_SPACE",
+      "shoot": "K_LCTRL"
+    },
+    "weapons": {
+      "slot1": "K_1",
+      "slot2": "K_2",
+      "slot3": "K_3"
+    },
+    "system": {
+      "pause": "K_p",
+      "quit": "K_q",
+      "exit_game": "K_ESCAPE",
+      "toggle_control_mode": "K_TAB",
+      "apply_mesh": "K_m"
+    }
+  },
+  "mouse": {
+    "buttons": {
+      "shoot": "MOUSE_LEFT",
+      "alt_shoot": "MOUSE_RIGHT",
+      "scroll_up": "MOUSE_WHEEL_UP",
+      "scroll_down": "MOUSE_WHEEL_DOWN"
+    },
+    "settings": {
+      "sensitivity": 1.5,
+      "invert_y": false
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "music": {
+    "intro": "thalassophobia.mp3",
+    "ingame": "the_deep_below.mp3"
+  },
+  "ambient": {
+    "harpoon": [
+      "piercing-1b.wav"
+    ],
+    "torpedo": [
+      "bang.mp3"
+    ],
+    "torpedo_explode": [
+      "explosion04.wav"
+    ],
+    "mine_explode": [
+      "hjm-big_explosion_3.wav"
+    ],
+    "mob_hit": [
+      "punch_1b.wav"
+    ],
+    "gun_reload": [
+      "gun_reload.mp3"
+    ],
+    "mob_death": [
+      "mob_death1.wav",
+      "mob_death2.wav"
+    ]
+  },
+  "ambient_volume": {
+    "harpoon": 0.3,
+    "torpedo": 0.2,
+    "gun_reload": 0.5,
+    "torpedo_explode": 0.3,
+    "mine_explode": 1,
+    "mob_hit": 0.1,
+    "mob_death": 0.1
+  }
+}

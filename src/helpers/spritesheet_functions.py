@@ -5,7 +5,7 @@ import pygame
 from os import path
 from pathlib import Path
 
-from ..config import IMAGE_PATH
+from ..helpers.file_io import load_json
 
 # Resolve paths relative to project root dir
 
@@ -14,9 +14,18 @@ class SpriteSheet:
     """ load an atlas image (spritesheet) pass an associated XML file to dictionary self.animation_frames"""
     def __init__(self, filename):
 
-        imgfile = path.join(IMAGE_PATH, filename + ".png")
+        image_path = self._load_image_path()
+        imgfile = path.join(image_path, filename + ".png")
         self.spritesheet = pygame.image.load(imgfile).convert_alpha()  # convert_alpha maintains transparent pixels whereas convert() replaces them with black pixels
-        self.xmlfile = path.join(IMAGE_PATH, filename + ".xml")
+        self.xmlfile = path.join(image_path, filename + ".xml")
+
+    def _load_image_path(self):
+
+        config_dir = Path("config")
+        game_config = load_json(config_dir / "game_config.json")
+        base = Path(game_config["base"])
+        image_path = base / game_config["rel_paths"]["images"]
+        return image_path
 
     def get_image(self, x, y, width, height):
 

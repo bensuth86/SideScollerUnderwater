@@ -22,24 +22,3 @@ TILESIZE = 46  # TESTING ONLY
 FPS = 60  # frames per second
 TARGET_FPS = 60  # targer frame rate- used for frame rate independence
 
-
-# IMAGES
-
-BACKGROUND = 'UnderwaterBackground.png'
-
-# SOUNDS
-MUSIC = {'Intro_music': 'thalassophobia.mp3',
-         'BG_music': 'the_deep_below.mp3'}
-
-AMBIENT_SOUNDS = {
-    'torpedo_explode': ['explosion04.wav'],
-    'mine_explode': ['hjm-big_explosion_3.wav'],
-    'mob_hit': ['punch_1b.wav'],
-    'mob_death': ['mob_death1.wav', 'mob_death2.wav']
-}
-
-WEAPON_SHOOT_SOUNDS = {
-    'harpoon': ['piercing-1b.wav'],
-    'torpedo': ['bang.mp3'],
-    'gun_reload': ['gun_reload.mp3']
-}
