@@ -21,4 +21,3 @@ SCREENHEIGHT = 736  # screen height in tiles (ditto)
 TILESIZE = 46  # TESTING ONLY
 FPS = 60  # frames per second
 TARGET_FPS = 60  # targer frame rate- used for frame rate independence
-

@@ -52,7 +52,7 @@ class ObjectPool(sprite.Group):
         self.add(sprite_obj)
 
         # remove from active layers
-        self.game.all_sprites.remove(sprite_obj)
+        self.game.active_sprites.remove(sprite_obj)
         self.game.hold_sprites.remove(sprite_obj)
         self.game.map.layers[sprite_obj.map_layer][sprite_obj.gridref].remove(sprite_obj)
 
@@ -66,7 +66,7 @@ class ObjectPool(sprite.Group):
         sprite.hitrect.center = sprite.rect.center
 
         sprite.add_to_map_layer()
-        self.game.all_sprites.add(sprite)
+        # self.game.all_sprites.add(sprite)
 
     def add_new_sprite(self):
         """Create and add a new sprite to the pool."""

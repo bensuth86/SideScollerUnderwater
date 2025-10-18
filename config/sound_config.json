@@ -3,6 +3,7 @@
     "intro": "thalassophobia.mp3",
     "ingame": "the_deep_below.mp3"
   },
+  "music_volume": 0,
   "ambient": {
     "harpoon": [
       "piercing-1b.wav"

@@ -8,15 +8,12 @@ class Camera:
     # TODO Parallax scrolling; objects, map layers move at different rates rel to camera scrolling speed
     def __init__(self, game):
         self.camera_rect = Rect(0, 0, SCREENWIDTH, SCREENHEIGHT)
-        self.pos = Vector2(0, 0)  # float-based camera position
+        self.pos = Vector2(0, 0)  # float-based camera position top left of screen and map
         self.game = game
 
     def update(self, target, lerp_factor=0.1):  # lerp of 0.1 preferref
 
         # update camera offset according to player's new position i.e. camera follows player
-        # x_offset = target.pos.x - (SCREENWIDTH / 2)
-        # y_offset = target.pos.y - (SCREENHEIGHT / 2)
-
         x_offset = target.rect.centerx - (SCREENWIDTH / 2)
         y_offset = target.rect.centery - (SCREENHEIGHT / 2)
 
@@ -48,3 +45,17 @@ class Camera:
         offset_x = rect.x - self.pos.x
         offset_y = rect.y - self.pos.y
         return offset_x, offset_y
+
+    def in_view(self, buffer, rect):
+        """Return True if the rect is within the visible camera area"""
+
+        cam_left, cam_top = self.pos.x - buffer, self.pos.y - buffer
+        cam_right, cam_bottom = cam_left + SCREENWIDTH + 2 * buffer, cam_top + SCREENHEIGHT + 2 * buffer
+
+        # Check if rect overlaps the camera view area
+        return not (
+            rect.right < cam_left or
+            rect.left > cam_right or
+            rect.bottom < cam_top or
+            rect.top > cam_bottom
+        )

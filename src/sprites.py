@@ -23,6 +23,9 @@ class Static_sprite(pygame.sprite.Sprite):
         self.hitrect = self.rect.copy()
         self.map_layer = self.__class__.map_layer
 
+        self.draw_layer = 1
+        self.priority = True
+
     def get_gridref(self):
 
         grid_col, grid_row = self.rect.center[0] // self.game.map.gridwidth, self.rect.center[1] // self.game.map.gridheight
@@ -67,6 +70,7 @@ class Pickup(Static_sprite):
     """Data read from Object Layers within map tmx file:  apply_pickup method calls lamda function corresponding to pickup cat"""
 
     map_layer = 'pickups'
+    _layer = 1
 
     def __init__(self, game, x, y, w, h, image, pickup_cat):
 
@@ -240,6 +244,8 @@ class Mobile_sprite(Static_sprite):
 
 class Missile(Mobile_sprite):
 
+    _layer = 3
+
     def __init__(self, game, x, y):
 
         self.direction = vec(1, 0)
@@ -393,6 +399,7 @@ class Torpedo(Missile):
 
 class Mine(Mobile_sprite):
 
+    _layer = 3
     map_layer = 'obstacles'
     refkey = 'mine'
 
@@ -462,6 +469,7 @@ class Mine(Mobile_sprite):
 
 class Player(Mobile_sprite):
 
+    _layer = 2
     map_layer = 'players'
     refkey = 'player_idle'
     runspeed = 8
@@ -541,8 +549,6 @@ class Player(Mobile_sprite):
         move = self.game.controls["keyboard"]["movement"]
         dash_key = self.game.controls["keyboard"]["actions"]["dash"]
 
-        # verticalKeys = [keys[pygame.K_s], keys[pygame.K_w]]
-        # horizontalKeys = [keys[pygame.K_d], keys[pygame.K_a]]
         verticalKeys = [keys[move["forward"]], keys[move["backward"]]]
         horizontalKeys = [keys[move["left"]], keys[move["right"]]]
 
@@ -606,8 +612,6 @@ class Player(Mobile_sprite):
             self.vel *= 1.5
             self.stamina -= interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 5
             self.newaction = 'player_rush'
-        # else:
-        #     self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * 1  # recover stamina
 
     def choose_weapon_numpad(self, index):
 
@@ -726,6 +730,7 @@ class Player(Mobile_sprite):
 
 class Enemy(Mobile_sprite):
 
+    _layer = 2
     num_of_mobs = 0
     mob_damage = 2  # deducted from player health (damage inflicted)
     antiGrav = 1.2  # constant of accn which repels mobs away from each other within avoid_rad

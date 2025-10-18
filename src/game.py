@@ -96,6 +96,7 @@ class Game:
         # Music
         music_path = self.sounds_path / "music" / self.sound_config["music"]["intro"]
         pygame.mixer.music.load(music_path)
+        pygame.mixer.music.set_volume(self.sound_config["music_volume"])
 
         # Ambient / effects sounds
         self.ambient_sounds = {
@@ -149,23 +150,26 @@ class Game:
         # init sprite groups
         self.mob_sprites = pygame.sprite.Group()  # TESTING ONLY
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted- group for visual effects only
-        self.all_sprites = pygame.sprite.Group()  # for drawing only
+        self.active_sprites = pygame.sprite.LayeredUpdates()  # for drawing only
 
+        tmxdata = self.map.tmxdata
+
+        # --- Generate static sprites (e.g. pickups) ---
         # generate static sprites from TiledMap Tile layers
-        for key, ttl in self.map.tmxdata.layernames.items():  # ttl - TiledTileLayer
-            if ttl.visible:
-                if key == 'pickups':
-                    for pickup in ttl:
-                        pickup_sprite = Pickup(self, pickup.x, pickup.y, pickup.width, pickup.height, pickup.image, pickup.name)
-                        self.all_sprites.add(pickup_sprite)
+        pickups_layer = tmxdata.layernames.get("pickups")
+        if pickups_layer.visible:
+            for tile in pickups_layer:
+                pickup_sprite = Pickup(self, tile.x, tile.y, tile.width, tile.height, tile.image, tile.name)
+                # self.all_sprites.add(pickup_sprite)
 
         # generate mobile sprites from TiledMap object layers
+
         for key, tog in self.map.tmxdata.layernames.items():  # ttl - TiledObjectGroup
             if tog.visible:
                 if key == 'players':
                     for player in tog:
                         self.player = Player(self, player.x, player.y)  # xpos, ypos, width, height
-                        self.all_sprites.add(self.player)
+                        # self.all_sprites.add(self.player)
 
                 if key == 'obstacles':
                     for obstacle in tog:
@@ -173,17 +177,19 @@ class Game:
                             x, y = obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2
                             self.objectpools['mine'].borrow_object(x, y)
 
+        # --- Generate enemies ---
         # generate enemies from TiledMap object layers
-        for i, enemy in enumerate(self.map.tmxdata.layernames['enemies']):
-            if enemy.name == 'Enemy':  # if mob child class is not specified
-                if i + 1 % 3 == 0:  # every 3rd mob generated
-                    mobkey = 'spinefish'
-                elif i + 1 % 20 == 0:  # every 10th mob generated
-                    mobkey = 'daddyfish'
-                else:
-                    mobkey = 'dartfish'
-            else:  # mob child class is determined
+        enemies_layer = tmxdata.layernames.get("enemies")
+        for i, enemy in enumerate(enemies_layer, start=1):
+            if enemy.name != 'Enemy':  # if mob child class specified i.e. not generic Enemy definirion
                 mobkey = enemy.name
+            elif i % 3 == 0:  # every 3rd mob generated
+                mobkey = 'spinefish'
+            elif i % 20 == 0:  # every 10th mob generated
+                mobkey = 'daddyfish'
+            else:
+                mobkey = 'dartfish'
+
             x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
             mob = self.objectpools[mobkey].borrow_object(x, y)
 
@@ -210,14 +216,18 @@ class Game:
 
     def handle_player_input(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
-            mouse_wheel_down, mouse_wheel_up = self.controls["mouse"]["buttons"]["scroll_down"], self.controls["mouse"]["buttons"]["scroll_up"]
-            if mouse_wheel_up <= event.button <= mouse_wheel_down:  # mouse wheel scroll
+            mouse_buttons = self.controls["mouse"]["buttons"]
+            scroll_up = mouse_buttons["scroll_up"]
+            scroll_down = mouse_buttons["scroll_down"]
+
+            if scroll_up <= event.button <= scroll_down:  # mouse wheel scroll
                 self.player.choose_weapon_mousewheel(event)
 
         elif event.type == pygame.KEYDOWN:
-            numkeys = list(self.controls["keyboard"]["weapons"].values())
-            sys_keys = self.controls["keyboard"]["system"]
-            if numkeys[0] <= event.key <= numkeys[-1]:
+            keyboard = self.controls["keyboard"]
+            weapon_keys = list(keyboard["weapons"].values())
+            sys_keys = keyboard["system"]
+            if weapon_keys[0] <= event.key <= weapon_keys[-1]:
                 weapon_index = int(event.unicode)
                 self.player.choose_weapon_numpad(weapon_index)
 
@@ -241,45 +251,36 @@ class Game:
                 self.handle_player_input(event)
 
     def transfer_sprites(self, sprites_to_transfer):
-        """ Transfer flagged sprites to new grid within their map layer"""
-        if sprites_to_transfer:
-            for sprite in sprites_to_transfer:
-                self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
-                self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
-                sprite.gridref = sprite.next_grid
-                # return missile sprites not in active sprites list to Objectpool
-                if sprite.gridref not in self.map.active_gridrefs:
-                    if isinstance(sprite, Missile):  # if missile sprite
-                        self.objectpools[sprite.refkey].rtrn_object(sprite)
+        """ Transfer flagged sprites to new grid within their map layer and handle pool returns"""
+        if not sprites_to_transfer:
+            return
 
-    def update(self):
-        """Game Loop - Update"""
-        # --- 1. Update camera ---
-        self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
-        # for mob in self.mob_sprites:
-        #     self.camera.update(mob)
+        for sprite in sprites_to_transfer:
+            # Move sprite between grids (spritegroups)
+            self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
+            self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
+            sprite.gridref = sprite.next_grid
+            # return missile sprites not in active sprites list to Objectpool
+            if sprite.next_grid not in self.map.active_gridrefs:
+                self.active_sprites.remove(sprite)
+                if isinstance(sprite, Missile):
+                    self.objectpools[sprite.refkey].rtrn_object(sprite)
 
-        # --- 2. Update active grids ---
-        self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
+    def update_active_grids(self):
+        """ For mobile map layers, call sprite update() for active grids (spritegroups).  Then update individual sprite positions
+        Finally transfer marked sprites to new grids"""
 
-        # Collect sprites that need to move between grids
-        sprites_to_transfer = []  # sprites to be moved to new grid for current update
-
-        # --- 3. Update mobile sprites in active grids ---
-        # call sprite update method then update position
         dt_scaled = self.dt * TARGET_FPS
-        for map_layer in self.map.mobile_layers:
-            layer_grids = self.map.layers[map_layer]  # return dictionary containing grids (sprite groups)
-
-            for grid_ref in self.map.active_gridrefs:  # 'A0', 'A1', 'A2' ...
-                grid = layer_grids[grid_ref]
-                grid.update()
-
-                for sprite in grid:
-                    # Update sprite positions (frame-rate independent)
-                    sprite.pos += sprite.vel * dt_scaled
-
-                    # Queue sprite for transfer between grids
+        sprites_to_transfer = []
+        # --- Call update for active grids ---
+        for grid_ref in self.map.active_gridrefs:
+            for layer in self.map.mobile_layers:
+                sprgroup = self.map.layers[layer][grid_ref]
+                sprgroup.update()
+                # --- Update individual sprite positions
+                for sprite in sprgroup:
+                    self.active_sprites.add(sprite)  # Sprites drawn on current iteration
+                    sprite.pos += sprite.vel * dt_scaled  # Update sprite positions (frame-rate independent)
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
 
@@ -287,7 +288,8 @@ class Game:
         if sprites_to_transfer:
             self.transfer_sprites(sprites_to_transfer)  # transfer flagged sprites to new grid
 
-        # --- 5. Update hold sprites ---
+    def update_holdsprites(self):
+
         sprites_to_return = []
 
         for sprite in self.hold_sprites:
@@ -302,33 +304,68 @@ class Game:
             elif sprite.gridref not in self.map.active_gridrefs:
                 sprites_to_return.append(sprite)
 
-        # --- 6. Return pooled sprites ---
+            # ---  Return pooled sprites ---
         for sprite in sprites_to_return:
             self.objectpools[sprite.refkey].rtrn_object(sprite)
 
+    def update(self):
+        """Game Loop - Update"""
+
+        sprites_to_transfer = []  # Collect sprites to be moved to new grid for current update
+
+        # --- 1. Update camera ---
+        self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
+        # for mob in self.mob_sprites:
+        #     self.camera.update(mob)
+
+        # --- 2. Update list of active grids ---
+        self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
+
+        # --- 3. Update mobile sprites in active grids ---
+        self.update_active_grids()
+
+        # --- 4. Update hold sprites ---
+        self.update_holdsprites()
+
     def draw(self):
-        """Game Loop - draw"""
-        pygame.display.set_caption("{:.2f}".format(self.clock.get_fps()))
-        # self.screen.blit(self.background, (self.camera.camera_rect.x, self.camera.camera_rect.y))  # draw background
+
+        # TODO- apply adaptive rendering for draw():
+        # Performance (FPS) — if FPS drops, skip or reorder less critical elements (e.g. shadows, particle FX).
+        # sprite.priority  # optional: used to deprioritize FX when FPS is low
+
+        """Render the full game frame: background, sprites, HUD, and effects."""
+        # --- Display setup ---
+        self.fps = self.clock.get_fps()
+        pygame.display.set_caption(f"{self.fps:.2f}")
         self.screen.fill(DEEPBLUE)
+
+        # --- Adaptive rendering thresholds ---
+        low_fps = self.fps < 30
+        critical_only = self.fps < 20  # e.g. skip particle FX when very low FPS
+
+        # --- Draw map background ---
         offset_x, offset_y = self.camera.apply_rect(self.map_rect)
         self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
 
-        # blit all map sprites, content
-        for sprite in self.all_sprites:
+        # --- Draw all sprites ---
+        for sprite in self.active_sprites:
+            # Skip non-critical FX under low FPS
+            if critical_only and getattr(sprite, "priority", "") == "fx":
+                continue
             sprite.draw()
 
-        # HUD functions
+        # # --- HUD (health, stamina, weapon, ammo) ---
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
         draw_sprite_bar(self.screen, 0.8 * SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
         draw_text(self, self.player.current_weapon, 20, RED, 0.4 * SCREENWIDTH, 15)  # current weapon
-
         draw_text(self, str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6 * SCREENWIDTH, 15)
+
         for grid in self.map.layers['obstacles'].values():
             for sprite in grid:
-                if sprite.refkey == 'mine':
-                    if sprite.active:
-                        draw_text(self, str(int(sprite.countdown + 1)), 50, RED, sprite.rect.centerx - self.camera.pos.x, sprite.rect.centery - self.camera.pos.y)
+                if sprite.refkey == 'mine' and sprite.active:
+                    draw_text(self, str(int(sprite.countdown + 1)), 50, RED,
+                    sprite.rect.centerx - self.camera.pos.x,
+                    sprite.rect.centery - self.camera.pos.y)
 
         # TESTING ONLY #
 
