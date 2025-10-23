@@ -35,6 +35,6 @@
     "torpedo_explode": 0.3,
     "mine_explode": 1,
     "mob_hit": 0.1,
-    "mob_death": 0.1
+    "mob_death": 0.3
   }
 }

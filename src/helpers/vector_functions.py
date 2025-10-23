@@ -1,14 +1,9 @@
 from pygame.math import Vector2 as vec
 from math import sin, cos, acos, atan2, sqrt, pi
 
+from .maths_util import sign
+
 #  Vector function for turning
-
-
-def sign(x):
-    """ Return the sign of a value; -1 ofx<0, 0 if x==0, 1 if x>0"""
-    sign = -1 if x < 0 else (1 if x > 0 else 0)
-    return sign
-
 
 def rect_to_vectors(rect):
     """ return pygame rect as line vectors for top, right, bottom, left"""
@@ -91,3 +86,24 @@ def get_radius_vector(vel, theta, geo_pro, direction):
 
     rad_0 = vec_trans(vel, rad0_mag, beta, direction)  # radius vector from origin for previous iteration
     return rad_0
+
+
+def get_nearest_cardinal(vector_in):
+    """Round a pygame.math.Vector2 to the nearest compass direction (N, E, S, W)"""
+
+    if vector_in.length() == 0:
+        raise ValueError("Zero vector has no direction.")
+
+    unit_vec = vector_in.normalize()  # make it a unit vector
+
+    compass_vectors = [
+        vec(1, 0),   # East
+        vec(0, -1),  # North
+        vec(-1, 0),  # West
+        vec(0, 1),   # South
+    ]
+
+    # Pick the compass vector with the max dot product
+    nearest = max(compass_vectors, key=lambda d: unit_vec.dot(d))
+
+    return nearest

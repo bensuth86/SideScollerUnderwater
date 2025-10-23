@@ -2,6 +2,7 @@ import pytmx
 import pygame
 from string import ascii_uppercase
 
+from ..helpers import clamp
 from ..settings import SCREENWIDTH, SCREENHEIGHT
 
 
@@ -20,76 +21,82 @@ class Grid(pygame.sprite.Group):
 
 class TiledMap:
 
-    def __init__(self, game, map_dir, PlatformClass):
-
-        tm = pytmx.load_pygame(map_dir, pixelalpha=True)
-        self.tmxdata = tm
-        self.tilesize = tm.tilewidth  # or tileheight
-        self.width = tm.width * tm.tilewidth
-        self.height = tm.height * tm.tileheight
-
-        self.LHS, self.RHS = self.tilesize, self.width - self.tilesize
-        self.top, self.btm = self.tilesize, self.height - self.tilesize
-
-        self.gridwidth = 8 * self.tilesize  # must be divisible by map width
-        self.gridheight = 8 * self.tilesize  # ditto map height
-
-        # grid square coordinates (A1, A2, A3 ... )
-        self.setup_grid_refs()
-
-        # map layers (dictionaries) divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites
-        self.layers = self.generate_map_layers()
-        self.mobile_layers = ['players', 'obstacles', 'weapons', 'enemies']  # map layers holding mobile sprites
+    def __init__(self, game, map_path: str, PlatformClass):
 
         self.game = game
         self.Platform = PlatformClass
 
-    def setup_grid_refs(self):
-        """Return list of x coordinates and y coordinates to be assigned to grid squares"""
+        self.tmxdata = pytmx.load_pygame(map_path, pixelalpha=True)
+        self.tilesize = self.tmxdata.tilewidth
+        self.width = self.tmxdata.width * self.tilesize
+        self.height = self.tmxdata.height * self.tilesize
 
-        # setup coords (A1, A2, A3 ....)
-        AZ = list(ascii_uppercase)  # list alphabet A-Z
-        AZZ = AZ + list(ascii_uppercase) + [letter1 + letter2 for letter1 in ascii_uppercase for letter2 in ascii_uppercase]  # extended list once map width exceeds 26 grid squares (A-Z + AA - ZZ)
+        self.LHS, self.RHS = self.tilesize, self.width - self.tilesize
+        self.top, self.bottom = self.tilesize, self.height - self.tilesize
 
-        self.x_coords = AZZ[:(int(self.width / self.gridwidth))]  # grid squares along map length [A, B, C, D ...
-        self.y_coords = [str(n) for n in range(int(self.height / self.gridheight))]  # ""            "" map height  [0, 1, 2, 3 ...
+        self.gridwidth = 8 * self.tilesize
+        self.gridheight = 8 * self.tilesize
 
-    def generate_map_layers(self):
-        """ Map layers for Platforms, players, mobs etc.  Each layer divided into grids (4 X 4 TILES). Grid class inherets pygame.sprite.Group for storing sprites """
+        # Grid coordinate references (A1, A2, ..., Z9, AA1, etc.)
+        self.x_coords, self.y_coords = self._generate_grid_refs()
 
-        map_layers = {'empty': {},  # TESTING ONLY
-                      'platforms': {},
-                      'obstacles': {},
-                      'pickups': {},
-                      'players': {},
-                      'weapons': {},
-                      'enemies': {}
-                      }
+        # Map layers divided into grid cells
+        self.layers = self._generate_map_layers()
 
-        for value in map_layers.values():
+        # Layers that contain moving entities
+        self.stationary_layers = ["pickups"]
+        self.mobile_layers = {"players", "obstacles", "weapons", "enemies"}
+
+        self.active_gridrefs = []
+
+    def _generate_grid_refs(self):
+        """Generate grid coordinate labels for map columns and rows."""
+
+        max_cols = int(self.width / self.gridwidth)
+        max_rows = int(self.height / self.gridheight)
+
+        # Extended alphabet (A-Z, AA-ZZ)
+        letters = list(ascii_uppercase)
+        extended_letters = letters + [a + b for a in letters for b in letters]
+        x_coords = extended_letters[:max_cols] # grid cols along map length [A, B, C, D ...
+        y_coords = [str(i) for i in range(max_rows)] # grid rows along map height [0, 1, 2, 3 ...
+
+        return x_coords, y_coords
+
+    def _generate_map_layers(self):
+        """ Create layer dictionaries divided into grid cells. Grid class inherets pygame.sprite.Group for storing sprites """
+        layer_names = ["empty", "platforms", "obstacles", "pickups", "players", "weapons", "enemies"]
+        map_layers = {name: {} for name in layer_names}
+
+        for layer_obj in map_layers.values():
             # generate grid squares
-            for i, grid_col in enumerate(self.x_coords):
-                for j, grid_row in enumerate(self.y_coords):
-                    grid_ref = (grid_col + grid_row)  # 'A1'
+            for i, col_label in enumerate(self.x_coords):
+                for j, row_label in enumerate(self.y_coords):
+                    grid_ref = f"{col_label}{row_label}"  # 'A1'
                     x1, y1 = (i * self.gridwidth), (j * self.gridheight)  # top left corner
                     x2, y2 = x1 + self.gridwidth, y1 + self.gridheight  # bottom right corner
                     grid = Grid(grid_ref, x1, y1, x2, y2)  # instance of Grid sprite.Group
-                    value[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
+                    layer_obj[grid_ref] = grid  # append key:value - 'A1': grid to grid_squares dictionary
 
         return map_layers
 
     def get_active_grids(self):
         """ Return list of gridrefs currently on screen and adjacent to screen boundaries - for calling grid.update"""
-        x_bound = [self.game.camera.pos.x - self.gridwidth, self.game.camera.pos.x + SCREENWIDTH + 2 * self.gridwidth]  # (left boundary, right boundary)
-        x_bound[0], x_bound[1] = max(x_bound[0], 0), min(x_bound[1], self.width)  # clamp to within map boundaries
-        y_bound = [self.game.camera.pos.y - self.gridheight, self.game.camera.pos.y + SCREENHEIGHT + 2 * self.gridheight]  # (top boundary, bottom boundary)
-        y_bound[0], y_bound[1] = max(y_bound[0], 0), min(y_bound[1], self.height)  # clamp to within map boundaries
+        cam_x, cam_y = self.game.camera.pos.x, self.game.camera.pos.y
 
-        left_col, right_col = int(x_bound[0] // self.gridwidth), int(x_bound[1] // self.gridwidth)
-        top_row, bottom_row = int(y_bound[0] // self.gridheight), int(y_bound[1] // self.gridheight)
-        active_cols = self.x_coords[left_col: right_col]
-        active_rows = self.y_coords[top_row: bottom_row]
+        x_min = clamp(cam_x - self.gridwidth, 0, self.width)
+        x_max = clamp(cam_x + SCREENWIDTH + 2 * self.gridwidth, 0, self.width)
+        y_min = clamp(cam_y - self.gridheight, 0, self.height)
+        y_max = clamp(cam_y + SCREENHEIGHT + 2 * self.gridheight, 0, self.height)
+
+        left_col, right_col = int(x_min // self.gridwidth), int(x_max // self.gridwidth)
+        top_row, bottom_row = int(y_min // self.gridheight), int(y_max // self.gridheight)
+
+        active_cols = self.x_coords[left_col:right_col]
+        active_rows = self.y_coords[top_row:bottom_row]
+
         self.active_gridrefs = [f"{col}{row}" for col in active_cols for row in active_rows]
+        return self.active_gridrefs
 
     def read_tiled_data(self, surface):
         """ Generate platform tiles and single map surf image for drawing """

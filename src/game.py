@@ -151,6 +151,7 @@ class Game:
         self.mob_sprites = pygame.sprite.Group()  # TESTING ONLY
         self.hold_sprites = pygame.sprite.Group()  # sprites to be deleted- group for visual effects only
         self.active_sprites = pygame.sprite.LayeredUpdates()  # for drawing only
+        self.fx_sprites = pygame.sprite.Group()
 
         tmxdata = self.map.tmxdata
 
@@ -160,7 +161,7 @@ class Game:
         if pickups_layer.visible:
             for tile in pickups_layer:
                 pickup_sprite = Pickup(self, tile.x, tile.y, tile.width, tile.height, tile.image, tile.name)
-                # self.all_sprites.add(pickup_sprite)
+                # self.active_sprites.add(pickup_sprite)
 
         # generate mobile sprites from TiledMap object layers
 
@@ -175,7 +176,7 @@ class Game:
                     for obstacle in tog:
                         if obstacle.name == 'Mine':
                             x, y = obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2
-                            self.objectpools['mine'].borrow_object(x, y)
+                            mine = self.objectpools['mine'].borrow_object(x, y)
 
         # --- Generate enemies ---
         # generate enemies from TiledMap object layers
@@ -195,7 +196,7 @@ class Game:
 
             self.mob_sprites.add(mob)  # TESTING ONLY
 
-        self.mesh = Mesh(self)  # load Mesh TESTING ONLY
+        # self.mesh = Mesh(self)  # load Mesh TESTING ONLY
 
     def run(self):
 
@@ -243,12 +244,16 @@ class Game:
                 self.running = False
 
     def events(self):
-        pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
+        # pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
 
         for event in pygame.event.get():
 
             if event.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
                 self.handle_player_input(event)
+
+            if event.type == pygame.QUIT:
+                self.playing = False
+                self.running = False
 
     def transfer_sprites(self, sprites_to_transfer):
         """ Transfer flagged sprites to new grid within their map layer and handle pool returns"""
@@ -262,7 +267,7 @@ class Game:
             sprite.gridref = sprite.next_grid
             # return missile sprites not in active sprites list to Objectpool
             if sprite.next_grid not in self.map.active_gridrefs:
-                self.active_sprites.remove(sprite)
+                # self.active_sprites.remove(sprite)
                 if isinstance(sprite, Missile):
                     self.objectpools[sprite.refkey].rtrn_object(sprite)
 
@@ -272,14 +277,16 @@ class Game:
 
         dt_scaled = self.dt * TARGET_FPS
         sprites_to_transfer = []
+
         # --- Call update for active grids ---
         for grid_ref in self.map.active_gridrefs:
             for layer in self.map.mobile_layers:
                 sprgroup = self.map.layers[layer][grid_ref]
                 sprgroup.update()
+
                 # --- Update individual sprite positions
                 for sprite in sprgroup:
-                    self.active_sprites.add(sprite)  # Sprites drawn on current iteration
+                    self.active_sprites.add(sprite)
                     sprite.pos += sprite.vel * dt_scaled  # Update sprite positions (frame-rate independent)
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
@@ -311,7 +318,7 @@ class Game:
     def update(self):
         """Game Loop - Update"""
 
-        sprites_to_transfer = []  # Collect sprites to be moved to new grid for current update
+        self.active_sprites.empty()
 
         # --- 1. Update camera ---
         self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
@@ -321,10 +328,16 @@ class Game:
         # --- 2. Update list of active grids ---
         self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
 
-        # --- 3. Update mobile sprites in active grids ---
+        # --- 3. Update stationary sprites in active grids ---
+        for grid_ref in self.map.active_gridrefs:
+            for layer in self.map.stationary_layers:
+                sprgroup = self.map.layers[layer][grid_ref]
+                self.active_sprites.add(*sprgroup.sprites())
+
+        # --- 4. Update mobile sprites in active grids ---
         self.update_active_grids()
 
-        # --- 4. Update hold sprites ---
+        # --- 5. Update hold sprites ---
         self.update_holdsprites()
 
     def draw(self):
@@ -354,6 +367,13 @@ class Game:
                 continue
             sprite.draw()
 
+        if not critical_only:
+            for sprite in self.fx_sprites:
+                sprite.draw()
+
+        for sprite in self.hold_sprites:
+            sprite.draw()
+
         # # --- HUD (health, stamina, weapon, ammo) ---
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
         draw_sprite_bar(self.screen, 0.8 * SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
@@ -367,7 +387,7 @@ class Game:
                     sprite.rect.centerx - self.camera.pos.x,
                     sprite.rect.centery - self.camera.pos.y)
 
-        # TESTING ONLY #
+        # ---- TESTING ONLY ---- #
 
         draw_grid(self)
         # self.mesh.draw()

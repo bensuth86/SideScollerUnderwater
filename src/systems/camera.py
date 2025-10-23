@@ -47,6 +47,7 @@ class Camera:
         return offset_x, offset_y
 
     def in_view(self, buffer, rect):
+        """ CURRENTLY REDUNDANT """
         """Return True if the rect is within the visible camera area"""
 
         cam_left, cam_top = self.pos.x - buffer, self.pos.y - buffer
