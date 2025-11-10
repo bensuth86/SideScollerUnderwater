@@ -27,8 +27,15 @@ class ObjectPool(sprite.Group):
 
     def populate(self, count):
 
-        for _ in range(count):
-            self.add_new_sprite()
+        for i in range(count):
+            self.add_new_sprite(i)
+
+    def add_new_sprite(self, i):
+        """Create and add a new sprite to the pool."""
+        if self.max_size is None or len(self) < self.max_size:
+            sprite = self.sprite_class(self.game, 0, 0)
+            sprite.ID = f"'{self.sprite_class}'#{i+1}"
+            self.add(sprite)
 
     def borrow_object(self, new_x, new_y):
         """
@@ -39,11 +46,16 @@ class ObjectPool(sprite.Group):
 
         # Create a new missile if pool is empty
         if not self:
-            self.add_new_sprite()
+            print(f"WARNING: No '{self.sprite_class} sprites in hold group to return to object pool! Your code is wank'")
+            self.add_new_sprite(i='NA')
 
         # Borrow one obj from pool
         for sprite_obj in self:
-            self.activate_sprite(sprite_obj, new_x, new_y)
+            sprite_obj.pos = vec(new_x, new_y)
+            sprite_obj.rect.center = sprite_obj.pos
+            sprite_obj.hitrect.center = sprite_obj.rect.center + (sprite_obj.direction * sprite_obj.HRoffset)
+
+            sprite_obj.add_to_map_layer()
             self.remove(sprite_obj)  # remove from pool after adding to active map_layer
             return sprite_obj  # currently only missile sprites return in use
 
@@ -59,21 +71,6 @@ class ObjectPool(sprite.Group):
         # Reset sprite's action/state
         sprite_obj.change_action(self.game.mobile_sprite_images, self.refkey)
 
-    def activate_sprite(self, sprite, x, y):
-        """Prepare sprite for active use; reposition, add to map layer, drawing layer."""
-        sprite.pos = vec(x, y)
-        sprite.rect.center = sprite.pos
-        sprite.hitrect.center = sprite.rect.center
-
-        sprite.add_to_map_layer()
-        # self.game.all_sprites.add(sprite)
-
-    def add_new_sprite(self):
-        """Create and add a new sprite to the pool."""
-        if self.max_size is None or len(self) < self.max_size:
-            sprite = self.sprite_class(self.game, 0, 0)
-            self.add(sprite)
-
     def refill_if_needed(self):
         """ If pool is empty or close too, retrieve inactive sprites from hold_sprites group, or create new sprite_objects last resort"""
         if len(self) < self.refill_threshold:
@@ -83,11 +80,6 @@ class ObjectPool(sprite.Group):
                     self.rtrn_object(sprite_obj)
                     self.game.hold_sprites.remove(sprite_obj)
                     break
-        # If still beloew refill_threshold, create a new sprite
-        if not self:
-            self.add_new_sprite()
-        # print(f'Missile Pool:  {len(self)}')
-        # print(f'Hold sprites:  {len(self.game.hold_sprites)}')
 
     def current_size(self):
         """Return the number of available objects in the pool."""

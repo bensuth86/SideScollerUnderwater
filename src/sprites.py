@@ -84,6 +84,7 @@ class Pickup(StaticSprite):
         self.image = image
         self.pickup_cat = pickup_cat
         self.add_to_map_layer()
+        pass
 
     def apply_pickup(self):
 
@@ -122,8 +123,8 @@ class Mobile_sprite(StaticSprite):
         self.rect.center = self.pos
 
         # Hitbox setup
-        self.HRoffset = 0
-        self.direction = vec(1, 0)
+        self.HRoffset = 0  # hitrect offset from sprite centre coords
+        self.direction = vec(1, 0)  # direction of travel, facing
         self.radius = 0.75 * ((self.rect.width + self.rect.height) / 4)
         self.rect_rtn = 0  # rotation angle in degrees
 
@@ -146,7 +147,7 @@ class Mobile_sprite(StaticSprite):
         avg = 0.5 * (self.rect.width + self.rect.height)
         size = int((avg / 2) + 1) * 2  # round up to nearest even int
         self.hitrect = pygame.Rect(0, 0, size, size)
-        self.hitrect.center = self.rect.center + self.direction.normalize() * self.HRoffset
+        self.hitrect.center = self.rect.center + (self.direction.normalize() * self.HRoffset)
 
     def flag_transfer_sprite(self):
         """ If sprite has moved to a new grid flag sprite for update in main game update"""
@@ -157,40 +158,59 @@ class Mobile_sprite(StaticSprite):
             return True
         return False
 
-    def collide_rect(self, sprite1, sprite2):
-        """ hitrect collision between 2 sprites"""
-        return sprite1.hitrect.colliderect(sprite2.hitrect)
-
-    def collide_sprites(self, map_layer):
+    def collide_sprites(self, test_rect, map_layer):
         """ Return list of collided sprites for current & adj grids within specified maplayer"""
-        hits = []  # for colliding with sprites in multiple grids when between grid boundaries
-        for grid_ref in self.adjacent_grids:
 
-            grid = self.game.map.layers[map_layer][grid_ref]  # return sprite group from grid_squares dictionary
-            hits.extend(pygame.sprite.spritecollide(self, grid, False, self.collide_rect))
+        hits = []
+        for grid_ref in self.adjacent_grids:
+            for sprite in self.game.map.layers[map_layer][grid_ref]:
+                if test_rect.colliderect(sprite.rect):
+                    hits.append(sprite)
 
         return hits
 
-    def collide_platforms(self, axis):  # [0, 1] for either [x, y] axis
+    def continuous_collision_detection(self, axis, map_layer, test_rect):
+        """
+        Prevent fast sprites skipping through e.g. walls- by checking if sprites path intersetcs a wall, not just its end position
+        Parameters:
+            axis (int): 0 for X-axis, 1 for Y-axis
+            map_layer (str): The layer to check collisions against.
 
-        self.hitrect[axis] = self.pos[axis] - 0.5 * self.hitrect.size[axis]  # update rect with new position
-        hits = self.collide_sprites('platforms')
+        Returns:
+            tuple or None: The clipped line segment if collision occurs, else None.
+        """
+        future_rect = test_rect.move(self.vel.x, self.vel.y)  # hitrect position after next update call
+        for grid_ref in self.adjacent_grids:
+            for sprite in self.game.map.layers[map_layer][grid_ref]:
+                clipped = sprite.rect.clipline(test_rect.center, future_rect.center)
+                if clipped:
+                    entry = clipped[0][axis]
+                    displacement = self.hitrect.center[axis] - entry
+                    # Adjust position and hitrect to prevent tunneling
+                    self.pos[axis] -= displacement
+                    self.hitrect[axis] -= displacement
+                    return clipped
 
+    def discrete_collision_detection(self, axis, map_layer):
+        """
+        Resolve collisions between this sprite and platforms along a given axis.
+
+        Returns:
+            list: Collided platform sprites, or an empty list.
+        """
+        hits = self.collide_sprites(self.hitrect, map_layer)
         if hits:
+            # ---return direction of travel +1 or -1 along axis:  left = -1, right = 1, up = -1, down = 1 --- #
+            platform = hits[0]
+            d = sign(platform.rect.center[axis]-self.hitrect.center[axis])
 
-            d = sign(hits[0].rect.center[axis]-self.hitrect.center[axis])  # direction of travel: left = -1, right = 1, up = -1, down = 1
-            # overlap between self.hitrect and platform.rect
-            overlap = 0.5*d*(self.hitrect.size[axis] + hits[0].rect.size[axis]) - (hits[0].rect.center[axis] - self.hitrect.center[axis])
+            # ---get overlap between test_rect and platform.rect along axis ---
+            overlap = 0.5*d*(self.hitrect.size[axis] + platform.rect.size[axis]) - (platform.rect.center[axis] - self.hitrect.center[axis])
+
+            # ---adjust position, hitrect so no longer colliding along current axis --- #
             self.pos[axis] -= overlap  # reset position so no longer colliding
-            self.hitrect[axis] = self.pos[axis] - 1/2*self.hitrect.size[axis]
-            return True
-
-    def atMapBoundaries(self):
-        """SHELVED"""
-        """ Check if at map boundaries (collision detection not used for platforms at boundary)"""
-
-        self.pos.x = max(min(self.game.map.RHS - 1/2*self.hitrect.width, self.pos.x), self.game.map.LHS + 1/2*self.hitrect.width)
-        self.pos.y = max(min(self.game.map.btm - 1/2*self.hitrect.height, self.pos.y), self.game.map.top + 1/2*self.hitrect.height)
+            self.hitrect[axis] -= overlap
+            return hits
 
     def change_action(self, anim_reel, newaction):
         """ change action from e.g. jumping to falling.  First check current action to see if action has actually changed then return new actionvar"""
@@ -214,7 +234,6 @@ class Mobile_sprite(StaticSprite):
             self.ref_image = pygame.transform.flip(self.ref_image, False, True)  # flip image
 
         self.image, self.rect = self.rotate_about_centre(self.rect_rtn)
-        self.rect.center = self.hitrect.center - (self.direction.normalize() * self.HRoffset)
 
     def animate(self, anim_reel):
         """Update current animation frame and transform image"""
@@ -257,8 +276,9 @@ class Missile(Mobile_sprite):
 
         self.direction = vec(1, 0)
         super().__init__(game, x, y)
+
         self.current_animation = self.game.mobile_sprite_images[self.__class__.refkey]
-        self.HRoffset = 0.5*self.rect.width # offset from rect.center
+        self.HRoffset = self.rect.width * self.__class__.HRoff_pct  # offset from rect.center so hitrect positioned at front of missile
         self.setup_hitrect()
 
     def setup_hitrect(self):
@@ -266,35 +286,47 @@ class Missile(Mobile_sprite):
         HRheight = self.rect.height * 0.75
         HRwidth = HRheight
         self.hitrect = pygame.Rect(self.rect.centerx, self.rect.centery, HRwidth, HRheight)
-        self.HRoffset = 0.5*self.rect.width  # offset from rect.center so hitrect positioned at front of missile
-        self.rect.center = self.hitrect.center - self.direction.normalize()*self.HRoffset
+        self.hitrect.center = self.rect.center + (self.direction.normalize()*self.HRoffset)  # offset hitrect from centre
 
     def activate(self, player):
         """ On player.shoot() borrow missile sprite from pool, set position offset from player, direction and add to weapons map_layer"""
         self.direction = vec(player.direction.x, player.direction.y)
+        # set position such that hitrect located at player_rect center
+        self.hitrect.center = self.pos
+        self.pos = self.pos - (self.HRoffset * self.direction.normalize())
         self.rect_rtn = player.rect_rtn
-        self.vel = self.direction.normalize() * Harpoon.runspeed
+        self.transform_image()
+        self.get_adjacent_grids()
+        self.vel = self.direction.normalize() * self.__class__.runspeed
+
+        # check if missile rect is already colliding with platform on activation, then reposition
+        if self.vel.x:
+            self.handle_platform_collision(0)
+        if self.vel.y:
+            self.handle_platform_collision(1)
 
 
 class Harpoon(Missile):
 
     map_layer = 'weapons'
     refkey = 'harpoon'
-    runspeed = 25
+    runspeed = 40
+    HRoff_pct = 0.3  # offset from rect.center (as % of rect.width) - so hitrect positioned at front of missile
 
     def __init__(self, game, x, y):
         super().__init__(game, x, y)
 
-    def collide_walls(self):
+    def handle_platform_collision(self, axis):
 
-        if self.collide_sprites('platforms'):
-            self.vel = vec(0, 0)
+        if self.continuous_collision_detection(axis, 'platforms', self.hitrect):
+
+            self.vel[axis] = 0
             self.add(self.game.hold_sprites)
             self.remove(self.game.map.layers[self.map_layer][self.gridref])
 
     def collide_enemy(self):
 
-        hits = self.collide_sprites('enemies')
+        hits = self.collide_sprites(self.hitrect, 'enemies')
         if hits:
             hits[0].take_damage(10)
 
@@ -303,19 +335,16 @@ class Harpoon(Missile):
 
     def collide_mines(self):
 
-        hits = self.collide_sprites('obstacles')  # mine collision kill sprite
+        hits = self.collide_sprites(self.hitrect, 'obstacles')  # mine collision 'kill' sprite -return to object pool
         if hits:
             if hits[0].refkey == 'mine':
                 self.game.objectpools[self.refkey].rtrn_object(self)
 
     def update(self):
 
-        self.hitrect.center = self.pos
-
         self.get_adjacent_grids()
 
         # collisions
-        self.collide_walls()
         self.collide_enemy()
         self.collide_mines()
 
@@ -324,7 +353,8 @@ class Torpedo(Missile):
 
     map_layer = 'weapons'
     refkey = 'torpedo'
-    runspeed = 20
+    runspeed = 40
+    HRoff_pct = 0.2  # offset from rect.center (as % of rect.width) - so hitrect positioned at front of missile
 
     def __init__(self, game, x, y):
 
@@ -333,37 +363,40 @@ class Torpedo(Missile):
         self.damage_constant = (0.5 * self.affect_rad) ** 3 / 2  # constant for damage to sprites within affect_rad inversely proportional to distance squared
         self.refresh_rate = 0.1  # rate animation changes slide (0.5 - changes twice per second)
 
-        self.vel = self.direction.normalize() * Torpedo.runspeed
+        # self.vel = self.direction.normalize() * Torpedo.runspeed
 
         # Smoke trail control
         self.smoke_timer = 0
         self.smoke_interval = 100  # milliseconds between smoke puffs
 
-    def collide_walls(self):
-        """Explode on impact with terrain."""
-        if self.collide_sprites('platforms'):
-            self.pos.x += sign(self.vel.x) * 70  # move explosion closer to the platform
-            self.pos.y += sign(self.vel.y) * 70  # ditto
+    def handle_platform_collision(self, axis):
+        """Explode on impact with platforms."""
+
+        if self.continuous_collision_detection(axis, 'platforms', self.hitrect):
+
             self.vel = vec(0, -2)  # explosion rises
-            return True
+            self.explode()
+
+            self.add(self.game.hold_sprites)
+            self.remove(self.game.map.layers[self.map_layer][self.gridref])
 
     def collide_enemy(self):
         """Direct hit instantly destroys target."""
-        hits = self.collide_sprites("enemies")
+        hits = self.collide_sprites(self.hitrect, "enemies")
         if hits:
             target = hits[0]
-            target.vel += self.vel * 3 / 16
+            target.vel += self.vel * 3 / 16  # transfer momentum to enemy
             target.hitpoints = 0
             self.vel *= 0.5
             return True
 
     def collide_mine(self):
         """Trigger mine explosions on contact."""
-        for hit in self.collide_sprites("obstacles"):
+        for hit in self.collide_sprites(self.hitrect, "obstacles"):
             if hit.refkey == "mine":
                 hit.countdown = 0
                 hit.active = True
-                hit.vel = self.vel * 0.0625  # transfer small momentum
+                hit.vel = self.vel * 0.0625  # transfer momentum to the mine
                 self.vel *= 0.25
                 return True
 
@@ -384,8 +417,8 @@ class Torpedo(Missile):
         self.inflict_damage('players', 800)  # inflict damage on sprites within radius
         self.inflict_damage('enemies', 1300)
 
-        self.remove(self.game.map.layers['weapons'][self.gridref])
         self.add(self.game.hold_sprites)
+        self.remove(self.game.map.layers['weapons'][self.gridref])
 
         # update animation reel to explosion animation
         self.change_action(self.game.effects_images, 'explosion')  # change self.actionvar to new action
@@ -393,10 +426,10 @@ class Torpedo(Missile):
 
     def update(self):
 
-        self.hitrect.center = self.pos
+        # self.hitrect.center = self.pos
         self.get_adjacent_grids()
 
-        if any([self.collide_walls(), self.collide_mine(), self.collide_enemy()]):
+        if any([self.collide_mine(), self.collide_enemy()]):
             self.explode()
 
 
@@ -427,6 +460,12 @@ class Mine(Mobile_sprite):
         size = int(self.rect.height * 0.6)
         self.hitrect = pygame.Rect(0, 0, size, size)
         self.hitrect.center = self.rect.center
+
+    def handle_platform_collision(self, axis):
+
+        hits = self.collide_sprites(self.hitrect, 'platforms')
+        if hits:
+            self.explode()
 
     def activate(self, delay=3.0):
         """Activate the mine with a countdown timer."""
@@ -494,6 +533,7 @@ class Player(Mobile_sprite):
     def __init__(self, game, x, y):
 
         super().__init__(game, x, y)
+        self.startpos = vec(self.pos.x, self.pos.y)  # TESTING ONLY
         self.add_to_map_layer()
 
         # Core attributes
@@ -568,7 +608,7 @@ class Player(Mobile_sprite):
             unit_vel += horizontal[0] * vec(-1, 0)  # left
             unit_vel += horizontal[1] * vec(1, 0)  # right
             self.newaction = "player_swimming"
-
+        # unit_vel = vec(-1, 1)
         self.vel = unit_vel.normalize() * Player.runspeed if unit_vel else vec(0, 0)
         self.direction = vec(unit_vel.x, unit_vel.y) if unit_vel else self.direction
         self.rect_rtn = vec(self.direction.x, self.direction.y).angle_to(vec(1, 0))  # angle sprite in direction of velocity
@@ -635,6 +675,10 @@ class Player(Mobile_sprite):
         """Recover stamina at fixed rate."""
         self.stamina += interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * factor
 
+    def handle_platform_collision(self, axis):
+
+        self.discrete_collision_detection(axis, 'platforms')
+
     def choose_weapon_numpad(self, index):
 
         index = max(0, min(index, len(self.weapons)))
@@ -664,7 +708,8 @@ class Player(Mobile_sprite):
 
                 if self.ammo[self.current_weapon] > 0:
                     #  TODO: vary missile velocity marginally
-                    start_pos = self.pos + 10 * self.direction.normalize()  # start position offset from player.rect by 10 pixels
+                    # set start pos such that missile hitrect starts at player rect center
+                    start_pos = self.pos - (self.HRoffset * self.direction.normalize())
                     missile = self.game.objectpools[self.current_weapon].borrow_object(start_pos.x, start_pos.y)
                     missile.activate(self)
 
@@ -675,7 +720,7 @@ class Player(Mobile_sprite):
 
     def collide_enemy(self):
 
-            hits = self.collide_sprites('enemies')
+            hits = self.collide_sprites(self.hitrect, 'enemies')
             for hit in hits:
                 self.hitpoints -= interval_trigger(self.game.elapsed_time, 0.2, self.game.dt) * hit.mob_damage  # hitpoints deducted every 0.2 seconds
 
@@ -691,7 +736,7 @@ class Player(Mobile_sprite):
 
     def collide_pick_up(self):
         # TODO Object pool for pickups
-        hits = self.collide_sprites('pickups')
+        hits = self.collide_sprites(self.hitrect, 'pickups')
         if hits:
             hits[0].apply_pickup()
 
@@ -722,10 +767,15 @@ class Player(Mobile_sprite):
 
         else:
             self.newaction = "player_hurt"
+            if self.continuous_collision_detection(0, 'platforms', self.hitrect):
+                self.vel.x = 0
+            # if no collision detected for hitrect check collision for sprite rect where player is adjacent to the wall
+            if self.continuous_collision_detection(1, 'platforms', self.rect):
+                self.vel.y = 0
 
-        # Check platform collision and update rect
-        self.collide_platforms(0)  # check horizontal collision
-        self.collide_platforms(1)  # check vertical collision
+        # # Check platform collision and update rect
+        # self.collide_platforms(0)  # check horizontal collision
+        # self.collide_platforms(1)  # check vertical collision
 
         # check sprite collisions
         self.collide_pick_up()
@@ -737,6 +787,7 @@ class Player(Mobile_sprite):
 
         self.change_action(self.game.mobile_sprite_images, self.newaction)  # change self.actionvar to new action
         self.current_animation = self.game.mobile_sprite_images[self.actionvar]
+        # print(self.pos)
 
 
 class Enemy(Mobile_sprite):
@@ -788,12 +839,11 @@ class Enemy(Mobile_sprite):
                     anti_g = -displacement * (Enemy.antiGrav*4 / displacement.length())**2
                     self.vel += anti_g
 
-    def collide_walls(self):
+    def handle_platform_collision(self, axis):
         """Simple elastic bounce response for wall collisions"""
-        if self.collide_platforms(0):  # check horizontal collision
-            self.vel.x *= -1 / 2  # bounce off walls
-        if self.collide_platforms(1):  # check vertical collision
-            self.vel.y *= -1 / 2  # bounce off walls
+        hits = super().discrete_collision_detection(axis, 'platforms')
+        if hits:
+            self.vel[axis] *= -1 / 2  # bounce off walls
 
     def _get_random_target(self):
         """Pick random target within map bounds."""
@@ -877,12 +927,12 @@ class Enemy(Mobile_sprite):
 
         self.get_adjacent_grids()
         self.idle_swim(self.__class__.territory_rad)
-        self.chase_player()
+
         self.get_target_vector()  # find new target vector
         self.chase_target()
+        self.chase_player()
         self.avoid_walls()
         self.avoid_mobs()
-        self.collide_walls()
         self.death()
 
 

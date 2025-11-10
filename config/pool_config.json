@@ -5,7 +5,7 @@
   },
   "harpoon": {
     "class": "Harpoon",
-    "size": 25
+    "size": 5
   },
   "mine": {
     "class": "Mine",

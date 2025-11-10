@@ -119,3 +119,13 @@ def readSpriteData(filename):
             sprites[listDetails[0]].update({headings[2]: int(listDetails[2])})
 
     return sprites
+
+
+def continuous_collision_detection(self, map_layer):
+    """ Prevent fast sprites skipping through e.g. walls- by checking if sprites path intersetcs a wall, not just its end position"""
+    test_rect = self.rect.move(self.vel.x, self.vel.y)
+    for grid_ref in self.adjacent_grids:
+        grid = self.game.map.layers[map_layer][grid_ref]
+        for sprite in grid:
+            if self.rect.clipline(test_rect.center, self.rect.center):
+                return True

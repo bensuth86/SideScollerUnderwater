@@ -281,13 +281,21 @@ class Game:
         # --- Call update for active grids ---
         for grid_ref in self.map.active_gridrefs:
             for layer in self.map.mobile_layers:
-                sprgroup = self.map.layers[layer][grid_ref]
-                sprgroup.update()
+                grid = self.map.layers[layer][grid_ref]
+                grid.update()
 
-                # --- Update individual sprite positions
-                for sprite in sprgroup:
+                # --- Update individual sprite positions then check for platform collision
+                for sprite in grid:
                     self.active_sprites.add(sprite)
-                    sprite.pos += sprite.vel * dt_scaled  # Update sprite positions (frame-rate independent)
+                    velocity = sprite.vel * dt_scaled  # adjust velocity so frame_rate independent
+                    sprite.pos += velocity  # Update sprite positions (frame-rate independent)
+
+                    sprite.hitrect.centerx = sprite.pos.x + (sprite.direction.x * sprite.HRoffset)
+                    sprite.handle_platform_collision(0)  # detect along x axis
+
+                    sprite.hitrect.centery = sprite.pos.y + (sprite.direction.y * sprite.HRoffset)
+                    sprite.handle_platform_collision(1)  # detect along y axis
+
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
 
@@ -302,7 +310,6 @@ class Game:
         for sprite in self.hold_sprites:
             sprite.vel *= 0.98  # apply velocity damping
             sprite.pos += sprite.vel
-            sprite.hitrect.center = sprite.pos  # must update hitrect rather than rect as rect position overwritten in Mobile_sprite.transform_image()
 
             # Queue sprite for return to object pool if animation ended
             if sprite.check_anim_end(sprite.current_animation):
@@ -320,11 +327,6 @@ class Game:
 
         self.active_sprites.empty()
 
-        # --- 1. Update camera ---
-        self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
-        # for mob in self.mob_sprites:
-        #     self.camera.update(mob)
-
         # --- 2. Update list of active grids ---
         self.map.get_active_grids()  # grids which are on screen and adjacent to screen boundaries
 
@@ -339,6 +341,11 @@ class Game:
 
         # --- 5. Update hold sprites ---
         self.update_holdsprites()
+
+        # --- 1. Update camera ---
+        self.camera.update(self.player)  # change camera rect position according to player position (centred on player rect)
+        # for mob in self.mob_sprites:
+        #     self.camera.update(mob)
 
     def draw(self):
 
@@ -370,9 +377,8 @@ class Game:
         if not critical_only:
             for sprite in self.fx_sprites:
                 sprite.draw()
-
-        for sprite in self.hold_sprites:
-            sprite.draw()
+            for sprite in self.hold_sprites:
+                sprite.draw()
 
         # # --- HUD (health, stamina, weapon, ammo) ---
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
@@ -411,14 +417,18 @@ class Game:
 
         # draw player rect
 
-        pygame.draw.rect(self.screen, WHITE, self.player.rect, 2)  # player rect
-        pygame.draw.rect(self.screen, RED, self.player.hitrect, 2)  # player hitrect
+        rect = pygame.Rect(self.player.rect.x - self.camera.pos.x, self.player.rect.y - self.camera.pos.y, self.player.rect.width, self.player.rect.height)
+        hitrect = pygame.Rect(self.player.hitrect.x - self.camera.pos.x, self.player.hitrect.y - self.camera.pos.y, self.player.hitrect.width, self.player.hitrect.height)
+        pygame.draw.rect(self.screen, WHITE, rect, 2)  # player rect
+        pygame.draw.rect(self.screen, RED, hitrect, 2)  # player hitrect
+        pygame.draw.circle(self.screen, WHITE, (int(self.player.startpos.x - self.camera.pos.x), int(self.player.startpos.y - self.camera.pos.y)), 10, 1)
+        pygame.draw.circle(self.screen, RED, (int(self.player.pos.x - self.camera.pos.x), int(self.player.pos.y - self.camera.pos.y)), 10, 1)
         # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
         # pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
 
         for grid in self.map.layers['weapons'].values():
             for sprite in grid:
-                # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
+                pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
                 pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
                 pass
 
