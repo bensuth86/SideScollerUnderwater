@@ -2,7 +2,7 @@ import json
 
 
 def load_json(filepath, encoding='utf-8'):
-    """Load and return JSON data from a file."""
+    """Load and return JSON data to dictionary."""
     with open(filepath, 'r', encoding=encoding) as f:
         return json.load(f)
 

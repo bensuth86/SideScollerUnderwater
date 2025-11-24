@@ -1,4 +1,4 @@
-# helpers/__init__.py
+# helpers/__init__.py.py
 
 from .assets import resize_images, load_spritesheets
 from .controls_mapping import _map_keyboard_controls, _map_mouse_controls

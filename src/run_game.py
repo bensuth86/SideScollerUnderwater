@@ -3,7 +3,6 @@
 import pygame
 from .settings import TITLE, SCREENWIDTH, SCREENHEIGHT
 from .game import Game
-from .logger import logger
 
 
 def run():

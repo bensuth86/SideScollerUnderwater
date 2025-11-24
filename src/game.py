@@ -3,6 +3,7 @@
 import json
 import pygame
 import time
+import logging
 from os import path
 from pathlib import Path
 
@@ -12,6 +13,9 @@ from .systems import TiledMap, Camera, ObjectPool, Mesh
 from .ui.hud import draw_sprite_bar, draw_text, draw_grid
 from src import sprites
 from .sprites import Pickup, Player, Missile
+from loggers import performance_FPS_monitoring, check_sprite_size, check_extreme_vel, left_map_bounds
+
+logger = logging.getLogger(__name__)
 
 
 class Game:
@@ -63,7 +67,7 @@ class Game:
         self.sound_config = load_json(config_dir / "sound_config.json")
         self.controls_config = load_json(config_dir / "controls_config.json")
 
-        print("[CONFIG] Game, image, and sound configs loaded")
+        logger.info("[CONFIG] Game, image, and sound configs loaded")
 
         # Resolve paths
         base = Path(self.game_config["base"])
@@ -90,6 +94,14 @@ class Game:
         # Mobile sprites
         self.mobile_sprite_images = load_spritesheets("mobs", "player", "weapons")
 
+        logger.info("[INFO] effects, pickups, mobs, player, weapons images loaded")
+
+        # --- Debug ---
+
+        check_sprite_size(self.effects_images, self.map.tilesize)
+        check_sprite_size(self.pickup_images, self.map.tilesize)
+        check_sprite_size(self.mobile_sprite_images, self.map.tilesize)
+
     def _load_sounds(self):
         """Load music and sound effects."""
 
@@ -108,6 +120,8 @@ class Game:
             for snd in self.ambient_sounds[key]:
                 snd.set_volume(volume)
 
+        logger.info("[INFO] music, ambient sounds loaded")
+
     def _load_controls(self):
         """ Map the control keys - load the config file and convert the string names to pygame key constants."""
 
@@ -115,6 +129,8 @@ class Game:
         mouse = _map_mouse_controls(pygame, self.controls_config.get("mouse", {}))
 
         self.controls = {"keyboard": keyboard, "mouse": mouse}
+
+        logger.info("loaded player controls")
 
     def _init_object_pools(self):
         """Initialize and populate all object pools from configuration."""
@@ -135,6 +151,7 @@ class Game:
             # Dynamically resolve class from src.sprites module
             try:
                 sprite_class = getattr(sprites, class_name)
+                logger.info(f"[INFO] {sprite_class} object_pool initialised")
             except AttributeError:
                 raise ImportError(f"Sprite class '{class_name}' not found in src.sprites")
 
@@ -143,7 +160,8 @@ class Game:
             pool.populate(size)
             self.objectpools[key] = pool
 
-        print(f"[INIT] Object pools initialized from {config_path}")
+        # print(f"[INIT] Object pools initialized from {config_path}")
+        logger.info(f"[INIT] Object pools initialized from {config_path}")
 
     def new(self):
         """Start a new game; initialise all variables, load or reload map data, sprites"""
@@ -182,7 +200,7 @@ class Game:
         # generate enemies from TiledMap object layers
         enemies_layer = tmxdata.layernames.get("enemies")
         for i, enemy in enumerate(enemies_layer, start=1):
-            if enemy.name != 'Enemy':  # if mob child class specified i.e. not generic Enemy definirion
+            if enemy.name != 'Enemy':  # if mob child class specified i.e. not generic Enemy definition
                 mobkey = enemy.name
             elif i % 3 == 0:  # every 3rd mob generated
                 mobkey = 'spinefish'
@@ -196,7 +214,7 @@ class Game:
 
             self.mob_sprites.add(mob)  # TESTING ONLY
 
-        # self.mesh = Mesh(self)  # load Mesh TESTING ONLY
+        self.mesh = Mesh(self)  # load Mesh TESTING ONLY
 
     def run(self):
 
@@ -205,11 +223,16 @@ class Game:
         pygame.mixer.music.play(loops=-1)
 
         while self.playing:
-            # self.dt = self.clock.tick(FPS) / 1000  # time elapsed during a single loop (seconds)
+
             self.clock.tick_busy_loop(FPS)
-            # print(self.clock.get_fps())
+
             self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
             self.elapsed_time += self.dt  # update elapsed time for current loop
+
+            # ---------------------------------------------
+            # ✓ Store actual FPS this frame
+            # ---------------------------------------------
+            self.fps = self.clock.get_fps()
 
             self.events()
             self.update()
@@ -227,6 +250,7 @@ class Game:
         elif event.type == pygame.KEYDOWN:
             keyboard = self.controls["keyboard"]
             weapon_keys = list(keyboard["weapons"].values())
+
             sys_keys = keyboard["system"]
             if weapon_keys[0] <= event.key <= weapon_keys[-1]:
                 weapon_index = int(event.unicode)
@@ -265,9 +289,10 @@ class Game:
             self.map.layers[sprite.map_layer][sprite.gridref].remove(sprite)
             self.map.layers[sprite.map_layer][sprite.next_grid].add(sprite)
             sprite.gridref = sprite.next_grid
+
             # return missile sprites not in active sprites list to Objectpool
             if sprite.next_grid not in self.map.active_gridrefs:
-                # self.active_sprites.remove(sprite)
+
                 if isinstance(sprite, Missile):
                     self.objectpools[sprite.refkey].rtrn_object(sprite)
 
@@ -298,6 +323,10 @@ class Game:
 
                     if sprite.flag_transfer_sprite():
                         sprites_to_transfer.append(sprite)
+
+                    # --- Debug ---
+                    check_extreme_vel(sprite)
+                    left_map_bounds(sprite, self.map)
 
         # --- 4. Transfer sprites between grids ---
         if sprites_to_transfer:
@@ -355,7 +384,7 @@ class Game:
 
         """Render the full game frame: background, sprites, HUD, and effects."""
         # --- Display setup ---
-        self.fps = self.clock.get_fps()
+
         pygame.display.set_caption(f"{self.fps:.2f}")
         self.screen.fill(DEEPBLUE)
 
@@ -393,6 +422,9 @@ class Game:
                     sprite.rect.centerx - self.camera.pos.x,
                     sprite.rect.centery - self.camera.pos.y)
 
+        # --- DEBUG ---
+        performance_FPS_monitoring(self.fps)
+
         # ---- TESTING ONLY ---- #
 
         draw_grid(self)
@@ -428,8 +460,8 @@ class Game:
 
         for grid in self.map.layers['weapons'].values():
             for sprite in grid:
-                pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
-                pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
+                # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
+                # pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
                 pass
 
         # mob data

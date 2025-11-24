@@ -1,4 +1,4 @@
-# systems/__init__.py
+# systems/__init__.py.py
 
 from .camera import Camera
 from .map_manager import Grid, TiledMap

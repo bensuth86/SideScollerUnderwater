@@ -1,4 +1,4 @@
-# ui/__init__.py
+# ui/__init__.py.py
 
 from .hud import *
 

@@ -1,4 +1,8 @@
 from pygame import sprite, Vector2 as vec
+from loggers import check_sprite_groups
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ObjectPool(sprite.Group):
@@ -46,8 +50,8 @@ class ObjectPool(sprite.Group):
 
         # Create a new missile if pool is empty
         if not self:
-            print(f"WARNING: No '{self.sprite_class} sprites in hold group to return to object pool! Your code is wank'")
             self.add_new_sprite(i='NA')
+            logger.warning(f"[POOL] '{self}' pool exhausted—borrowing more than configured max.")
 
         # Borrow one obj from pool
         for sprite_obj in self:
@@ -71,6 +75,9 @@ class ObjectPool(sprite.Group):
         # Reset sprite's action/state
         sprite_obj.change_action(self.game.mobile_sprite_images, self.refkey)
 
+        # --- Debug ---
+        check_sprite_groups(sprite_obj, self)
+
     def refill_if_needed(self):
         """ If pool is empty or close too, retrieve inactive sprites from hold_sprites group, or create new sprite_objects last resort"""
         if len(self) < self.refill_threshold:
@@ -78,7 +85,7 @@ class ObjectPool(sprite.Group):
             for sprite_obj in list(self.game.hold_sprites):
                 if isinstance(sprite_obj, self.sprite_class):
                     self.rtrn_object(sprite_obj)
-                    self.game.hold_sprites.remove(sprite_obj)
+                    # self.game.hold_sprites.remove(sprite_obj)
                     break
 
     def current_size(self):

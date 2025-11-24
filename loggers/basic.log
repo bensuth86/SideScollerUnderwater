@@ -1,0 +1,25 @@
+[INFO] 17:05:22 - root - Logging initialized. Logs stored in C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\loggers
+[INFO] 17:05:22 - root - Test the custom logger
+[INFO] 17:05:22 - __main__ - Game starting up...
+[INFO] 17:05:23 - src.game - [CONFIG] Game, image, and sound configs loaded
+[INFO] 17:05:23 - src.game - [INFO] effects, pickups, mobs, player, weapons images loaded
+[WARNING] 17:05:23 - loggers.logging_fnc - [IMAGES] 'harpoon' height doesn't fit tile size.
+[INFO] 17:05:23 - src.game - [INFO] music, ambient sounds loaded
+[INFO] 17:05:23 - src.game - loaded player controls
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Torpedo'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Harpoon'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Mine'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Daddyfish'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Dartfish'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INFO] <class 'src.sprites.Spinefish'> object_pool initialised
+[INFO] 17:05:23 - src.game - [INIT] Object pools initialized from config\pool_config.json
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 17:05:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0

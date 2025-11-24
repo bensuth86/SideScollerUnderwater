@@ -1,6 +1,9 @@
 from pygame import Rect, Vector2
 
 from ..settings import SCREENWIDTH, SCREENHEIGHT
+from loggers import camera_lerp, detectNan_infinite_drift
+
+import logging
 
 
 class Camera:
@@ -24,8 +27,13 @@ class Camera:
         y_offset = min(self.game.map.height - SCREENHEIGHT, y_offset)  # bottom map edge
 
         # LERP current camera position toward target position (adjust between 0.05 - 0.2 for best results, 1 for no lerp- instantaneous snapping)
+        old_pos = self.pos.copy()  # For debug only
         self.pos.x += (x_offset - self.pos.x) * lerp_factor
         self.pos.y += (y_offset - self.pos.y) * lerp_factor
+
+        # --- Debug ---
+        camera_lerp(lerp_factor)  # expected lerp 0 < f < 1
+        detectNan_infinite_drift(self.pos, old_pos)
 
     def parallax_scrolling(self, surface, background_image):
         """ Entity.rect moves by a fraction of camera offset e.g. 1/2 self.rect.x, 1/2 self.rect.y"""

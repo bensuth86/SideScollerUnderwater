@@ -1,9 +1,11 @@
 import pytmx
 import pygame
+
 from string import ascii_uppercase
 
 from ..helpers import clamp
 from ..settings import SCREENWIDTH, SCREENHEIGHT
+from loggers import check_valid_grid
 
 
 class Grid(pygame.sprite.Group):
@@ -38,14 +40,17 @@ class TiledMap:
         self.gridheight = 8 * self.tilesize
 
         # Grid coordinate references (A1, A2, ..., Z9, AA1, etc.)
+
         self.x_coords, self.y_coords = self._generate_grid_refs()
 
         # Map layers divided into grid cells
         self.layers = self._generate_map_layers()
 
+        self.grid_coords = list(self.layers["empty"].keys())  # list of grid coordinate references for current map
+
         # Layers that contain moving entities
-        self.stationary_layers = ["pickups"]
-        self.mobile_layers = {"players", "obstacles", "weapons", "enemies"}
+        self.stationary_layers = ["pickups"]  # sprites always within assigned grid
+        self.mobile_layers = {"players", "obstacles", "weapons", "enemies"}  # sprites can move from grid to grid
 
         self.active_gridrefs = []
 
@@ -58,8 +63,8 @@ class TiledMap:
         # Extended alphabet (A-Z, AA-ZZ)
         letters = list(ascii_uppercase)
         extended_letters = letters + [a + b for a in letters for b in letters]
-        x_coords = extended_letters[:max_cols] # grid cols along map length [A, B, C, D ...
-        y_coords = [str(i) for i in range(max_rows)] # grid rows along map height [0, 1, 2, 3 ...
+        x_coords = extended_letters[:max_cols]  # grid cols along map length [A, B, C, D ...
+        y_coords = [str(i) for i in range(max_rows)]  # grid rows along map height [0, 1, 2, 3 ...
 
         return x_coords, y_coords
 
@@ -96,6 +101,11 @@ class TiledMap:
         active_rows = self.y_coords[top_row:bottom_row]
 
         self.active_gridrefs = [f"{col}{row}" for col in active_cols for row in active_rows]
+
+        # --- Debug ---
+        for gridref in self.active_gridrefs:
+            check_valid_grid(gridref, None, self.grid_coords)
+
         return self.active_gridrefs
 
     def read_tiled_data(self, surface):
