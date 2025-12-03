@@ -3,13 +3,13 @@
 import json
 import pygame
 import time
+import numpy as np
 import logging
-from os import path
 from pathlib import Path
 
 from .settings import *
 from .helpers import resolve_class, resize_images, load_spritesheets, load_json, _map_keyboard_controls, _map_mouse_controls
-from .systems import TiledMap, Camera, ObjectPool, Mesh
+from .systems import TiledMap, Camera, ObjectPool
 from .ui.hud import draw_sprite_bar, draw_text, draw_grid
 from src import sprites
 from .sprites import Pickup, Player, Missile
@@ -50,6 +50,9 @@ class Game:
         # --- Load sprite images ---
         self._load_images()
 
+        # --- Load mesh ---
+        self._load_mesh()
+
         # --- Load sounds ---
         self._load_sounds()
 
@@ -64,8 +67,10 @@ class Game:
         config_dir = Path("config")
         self.game_config = load_json(config_dir / "game_config.json")
         self.image_config = load_json(config_dir / "image_config.json")
+        self.mesh_config = load_json(config_dir / "mesh_config.json")
         self.sound_config = load_json(config_dir / "sound_config.json")
         self.controls_config = load_json(config_dir / "controls_config.json")
+
 
         logger.info("[CONFIG] Game, image, and sound configs loaded")
 
@@ -74,6 +79,7 @@ class Game:
         rel_paths = self.game_config["rel_paths"]
 
         self.image_path = base / rel_paths["images"]
+        self.mesh_path = base / rel_paths["mesh"]
         self.maps_path = base / rel_paths["maps"]
         self.sounds_path = base / rel_paths["sounds"]
 
@@ -101,6 +107,44 @@ class Game:
         check_sprite_size(self.effects_images, self.map.tilesize)
         check_sprite_size(self.pickup_images, self.map.tilesize)
         check_sprite_size(self.mobile_sprite_images, self.map.tilesize)
+
+    def _load_mesh(self):
+        """     Load all .npy mesh files defined in self.mesh_config into NumPy arrays.
+
+    Expected mesh_config structure:
+        {
+            "anti_g": {
+                "level1": "level1_anti_g.npy",
+                "level2": "level2_anti_g.npy"
+            },
+            "waterflow": {
+                "level1": "level1_waterflow.npy"
+            }
+        }
+    Returns:
+        dict(level_name -> mesh_array)
+"""
+        self.mesh_arrays = {}  # load n
+
+        for mesh_type, level_dict in self.mesh_config.items():
+            self.mesh_arrays.update({mesh_type: {}})
+            for level_name, mesh_file in level_dict.items():
+
+                file_path = self.mesh_path / mesh_file
+                # Check file exists
+                if not file_path.exists():
+                    logger.warning(f"[WARNING] Mesh file not found: {file_path}")
+                    self.mesh_arrays[mesh_type][level_name] = None
+                    continue
+                # Attempt to load the file
+                try:
+                    array = np.load(file_path)
+                    self.mesh_arrays[mesh_type][level_name] = array
+                    logger.info(f"[OK] Loaded mesh: {file_path}")
+                except Exception as e:
+                    logger.error(f"[ERROR] Failed to load mesh file: {file_path}")
+                    logger.error(f"        Reason: {e}")
+                    self.mesh_arrays[level_name] = None
 
     def _load_sounds(self):
         """Load music and sound effects."""
@@ -214,7 +258,7 @@ class Game:
 
             self.mob_sprites.add(mob)  # TESTING ONLY
 
-        self.mesh = Mesh(self)  # load Mesh TESTING ONLY
+        # self.mesh = Mesh(self)  # load Mesh TESTING ONLY
 
     def run(self):
 

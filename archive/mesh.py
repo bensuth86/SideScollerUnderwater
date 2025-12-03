@@ -1,7 +1,7 @@
 import colorsys
 from pygame import Vector2 as vec, draw
 
-from .map_manager import Grid
+from src.systems.map_manager import Grid
 
 
 class Mesh:

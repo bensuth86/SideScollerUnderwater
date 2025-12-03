@@ -1,0 +1,10 @@
+{
+  "anti_g": {
+    "test": "test_anti_g.npy",
+    "level1": "level1_anti_g.npy"
+  },
+  "waterflow": {
+    "test": "test_waterflow.npy",
+    "level1": "level1_waterflow.npy"
+  }
+}

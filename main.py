@@ -21,6 +21,7 @@ def main():
     except Exception as e:
         logger.exception("Unhandled exception occurred: %s", e)
 
+
 if __name__ == "__main__":
     main()
     run()

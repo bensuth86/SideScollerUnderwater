@@ -32,6 +32,12 @@ class StaticSprite(pygame.sprite.Sprite):
         self.draw_layer = 1  # draw_order
         self.priority = True  # used to deprioritize FX when FPS is low
 
+    def get_map_tile(self):
+        """ Return tile index position where sprite rect.center located"""
+        tile_x = int(self.rect.centerx // self.game.map.tilesize)
+        tile_y = int(self.rect.centery // self.game.map.tilesize)
+        return tile_x, tile_y
+
     def get_gridref(self):
         """Return the grid reference (e.g., 'A1') where this sprite currently resides."""
         grid_x = int(self.rect.centerx // self.game.map.gridwidth)
@@ -148,6 +154,13 @@ class Mobile_sprite(StaticSprite):
         self.current_frame_index = 0
         self.current_animation = []
         self.setup_hitrect()
+
+    def apply_mesh_vector(self, mesh_type):
+        """ Get mesh vector for current tile position, convert to velecity vector and apply"""
+        tile_x, tile_y = self.get_map_tile()
+        mesh_ele = self.game.mesh_arrays[mesh_type]['test'][tile_y][tile_x]  # return numpy elemwnt for current tile
+        anti_g_vec = vec(mesh_ele[0], mesh_ele[1])
+        self.vel += anti_g_vec / self.__class__.mass
 
     def setup_hitrect(self):
         """ hitrect square centred about self.rect.center. Used for sprite collisions. """
@@ -813,7 +826,6 @@ class Player(Mobile_sprite):
         self.current_animation = self.game.mobile_sprite_images[self.actionvar]
         # print(self.pos)
 
-
 class Enemy(Mobile_sprite):
 
     _layer = 2
@@ -830,7 +842,8 @@ class Enemy(Mobile_sprite):
         self.anti_g = vec(0, 0)
         self.displacement = vec(0, 0)
 
-        self.chase_player_rad = 2 * game.map.gridwidth
+        self.target_player_rad = 2 * game.map.gridwidth
+        self.target_player_rad = 1 * game.map.tilesize
         self.rect_collisionF = pygame.Rect(0, 0, game.map.tilesize, game.map.tilesize)
         self.rect_collisionL = pygame.Rect(0, 0, game.map.tilesize, game.map.tilesize)
 
@@ -844,7 +857,7 @@ class Enemy(Mobile_sprite):
         Enemy.num_of_mobs += 1
 
     def avoid_walls(self):
-        """ Apply repulsion force away from nearby walls"""
+        """ SHELVED; Apply repulsion force away from nearby walls"""
 
         for ref in self.adjacent_grids:
             for ptf in self.game.map.layers['platforms'][ref]:
@@ -897,14 +910,15 @@ class Enemy(Mobile_sprite):
     def idle_swim(self, territory_rad):
         """ Swim towards random points (targets) on screen when not chasing player, other mobs etc"""
         switch_target = (
-            self.vel.length_squared() < 1
+            self.target_vec.length_squared() < self.game.map.tilesize**2
+            or self.vel.length_squared() < 4
             or interval_trigger(self.timer, 4, self.game.dt)
         )
 
         if switch_target:
-
-            targetx = randrange(int(self.start_pos.x - territory_rad), int(self.start_pos.x + territory_rad))
-            targety = randrange(int(self.start_pos.y - 0.25 * territory_rad), int(self.start_pos.y + 0.25 * territory_rad))
+            step = self.territory_rad / 4
+            targetx = randrange(int(self.start_pos.x - territory_rad), int(self.start_pos.x + self.territory_rad), step)
+            targety = randrange(int(self.start_pos.y - 0.25 * territory_rad,), int(self.start_pos.y + 0.25 * self.territory_rad), step)
 
             # Limit target to within map extents
             targetx = clamp(targetx, self.game.map.gridwidth, self.game.map.width - self.game.map.gridwidth)
@@ -914,10 +928,10 @@ class Enemy(Mobile_sprite):
             if not self.check_intersect(new_target):
                 self.target = new_target
 
-    def chase_player(self):
+    def target_player(self):
         """Switch target to player if within chase radius and unobstructed."""
         player_vec = self.game.player.pos - self.pos
-        if player_vec.length_squared() < self.chase_player_rad ** 2:
+        if player_vec.length_squared() < self.target_player_rad ** 2:
             target = vec(self.game.player.rect.center)
             if not self.check_intersect(target):
                 self.target = target
@@ -950,12 +964,14 @@ class Enemy(Mobile_sprite):
     def update(self):
 
         self.get_adjacent_grids()
-        self.idle_swim(self.__class__.territory_rad)
+        self.idle_swim(self.territory_rad)
 
         self.get_target_vector()  # find new target vector
         self.chase_target()
-        self.chase_player()
-        self.avoid_walls()
+        self.target_player()
+
+        # self.avoid_walls()
+        self.apply_mesh_vector('anti_g')  # add anti_g velocity components to current self.vel
         self.avoid_mobs()
         self.death()
 
@@ -965,15 +981,15 @@ class Daddyfish(Enemy):
     map_layer = 'enemies'
     refkey = 'daddyfish'
     hitpoints = 100
-    territory_rad = 1472  # 4 * map.gridwidth
-    maxspeed = 8
-    mass = 4
+    # territory_rad = 1472  # 4 * map.gridwidth
+    maxspeed = 6
+    mass = 10
 
-    error_margin = 5  # average percentage error for tracking target vec  (25%
-    error_var = 2  # variance in percentage error ( 25 +/- 5% )
+    error_margin = 5  # average percentage error for tracking target vec  (5%
+    error_var = 2  # variance in percentage error ( 5 +/- 2% )
     switch_freq = 2  # switch to new target every n seconds
 
-    avoidRect_length = 276  # 6 * TILESIZE  # rect for detecting platforms/ walls
+    # avoidRect_length = 276  # 6 * TILESIZE  # rect for detecting platforms/ walls
 
     deathanimation = 'enemydeath4x4'
 
@@ -984,6 +1000,7 @@ class Daddyfish(Enemy):
         # self.hitpoints = Daddyfish.hitpoints
         self.vel = vec(1, 0)
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
+        self.territory_rad = 4 * self.game.map.gridwidth
 
     def chase_target(self):
         """Get acceleration vector directed to target.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
@@ -1003,8 +1020,8 @@ class Dartfish(Enemy):
     vel = vec(6, 0)  # initial velocity
     max_speed = 14
     mass = 6
-    territory_rad = 690  # 15 * TILESIZE
-    error_margin = 25  # average percentage error for tracking target vec  (25%
+    # territory_rad = TiledMap.gridwidth  # 15 * TILESIZE
+    error_margin = 15  # average percentage error for tracking target vec  (25%
     error_var = 30  # variance in percentage error ( 25 +/- 30% )
     switch_freq = 0.2  # recalc target_error every n seconds (don't confuse with change target idle_swim fnc)
 
@@ -1022,6 +1039,7 @@ class Dartfish(Enemy):
         self.hitpoints = Dartfish.hitpoints
         self.vel = Dartfish.vel
         self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
+        self.territory_rad = 4 * self.game.map.gridwidth
 
     def spiral_turn(self, direction):
         """ Switch from either log spriral or exp spiral trajectory to close in on target_vec"""

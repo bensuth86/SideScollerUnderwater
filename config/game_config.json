@@ -3,6 +3,7 @@
   "rel_paths": {
     "images": "assets/Images",
     "maps": "assets/maps",
+    "mesh": "assets/mesh_files",
     "sounds": "assets/sounds",
     "music": "assets/sounds/music",
     "ambient": "assets/sounds/ambient",
