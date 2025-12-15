@@ -24,14 +24,11 @@ def detectNan_infinite_drift(pos, old_pos):
         logger.warning("[CAMERA] Excessive camera jump on Y axis — target teleported?")
 
 # --- PERFORMANCE ---
-
 def performance_FPS_monitoring(FPS):
     """ Raise warning if FPS below thresholds, adaptive rendering triggered"""
     if FPS < 20:
-        print(FPS)
         logger.warning(f"[PERF] Critical low FPS: {FPS:.1f}")
     elif FPS < 30:
-        print(FPS)
         logger.warning(f"[PERF] Low FPS: {FPS:.1f} — adaptive rendering triggered.")
 
 

@@ -1,3 +1,16 @@
+"""
+Mesh generation utilities for Anti-G fields based on TMX tile maps.
+
+This module:
+    • Loads TMX tile data
+    • Builds an initial velocity mesh from tile layers
+    • Applies a Jacobi relaxation method to propagate velocity through empty tiles
+    • Computes unit direction vectors
+    • Exports and visualises the final mesh
+
+Author: <The Hand>
+"""
+
 import pytmx
 import numpy as np
 import copy
@@ -5,7 +18,9 @@ from pytmx import TiledTileLayer
 from pathlib import Path
 from tiled_mesh.heat_map import visualise_mesh
 
-from src.helpers import load_json
+# ---------------------------------------------------------------------
+# CONFIGURATION
+# ---------------------------------------------------------------------
 
 mesh_types = ['anti_g', 'water_flow']
 platform_grav = [20, 20]  # repulsive velocity at platform tile
@@ -34,8 +49,6 @@ def apply_jacobi_method(initial_mesh: np.ndarray, empty_mask, tolerance: float =
     updated_mesh = current_mesh.copy()
 
     h, w, vec = current_mesh.shape
-
-    # empty_mask = ~np.all(current_mesh == [20, 20], axis=2)  # mask for empty tiles between platforms
 
     diff = np.inf  # initialize diffence between arr+1 and prior arr to positive infinity to ensure while loop executes at least once
 
@@ -70,7 +83,6 @@ def get_vector_directions(current_mesh, empty_mask):
     """ Determines the direction of anti_g vector; [1, 0] = right, [-1, 0] = left, [0, 1] = down, [0, -1] = up"""
     h, w, vec = current_mesh.shape
     unit_vec_mesh = np.zeros((h, w, 2), dtype=int)
-    # empty_mask = ~np.all(current_mesh == [20, 20], axis=2)  # mask for empty tiles between platforms
     for j in range(1, h - 1):
         for i in range(1, w - 1):
             # only update empty tiles
@@ -86,7 +98,9 @@ def get_vector_directions(current_mesh, empty_mask):
 
 
 def mesh_setup(map_file):
-    # ANTI-G MESH
+    """ Creates initial velocity mesh from TMX tiles.
+    # Platform tiles are assigned a fixed anti_g velocity vector: platform_grav """
+
     tmxdata = pytmx.TiledMap(map_file)
     # --- Setup initial mesh --- #
 
@@ -107,7 +121,7 @@ def mesh_setup(map_file):
 
 
 # ---------------------------------------------------------------------
-# MESH SOLVER PIPELINE
+# MESH SOLVER
 # ---------------------------------------------------------------------
 
 
@@ -125,6 +139,7 @@ def generate_mesh(initial_mesh: np.ndarray, empty_mask):
 
 
 def load_map():
+    """Hardcoded loader for a test TMX file."""
     maps_path = Path(
         r"C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\maps"
     )
@@ -133,7 +148,9 @@ def load_map():
 
 
 def export_array(map_file, anti_g_mesh):
-
+    """
+    Save mesh as .npy with filename based on TMX map name.
+    """
     map_file = Path(map_file)
 
     # Use the TMX file name without extension
@@ -156,6 +173,8 @@ def export_array(map_file, anti_g_mesh):
 
 
 def print_array(arr):
+    """Pretty-print 2D or 3D array row by row."""
+
     for row in arr:
         print(" ".join(str(cell) for cell in row))
     print('\n')
@@ -173,7 +192,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    # map_file = load_map()
-    # initial_mesh = mesh_setup(map_file)
-    # final_mesh = generate_mesh(initial_mesh)
-    # visualise_mesh(final_mesh, title="Anti_g Mesh Field")

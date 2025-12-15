@@ -8,3 +8,6 @@ spritesheets
 temp
 underwater-diving-files
 Git_commands.txt
+loggers/basic.log
+loggers/errors.log
+loggers/test.log

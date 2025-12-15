@@ -3,7 +3,13 @@ from math import sin, cos, acos, atan2, sqrt, pi
 
 from .maths_util import sign
 
-#  Vector function for turning
+
+def normalise(v):
+    """Prevent division by zero if vector length is 0"""
+    if v.length() == 0:
+        return vec(0, 0)
+    return v.normalize()
+
 
 def rect_to_vectors(rect):
     """ return pygame rect as line vectors for top, right, bottom, left"""
@@ -44,9 +50,9 @@ def turn_direction(vector1, vector2):
     """ From current velocity and target vectors, choose turning direction- anticlockwise: return -1, clockwise: return 1
         Direction used in vec_trans function to determine rotation matrix and therefore velocity direction"""
     det = sign(vector1.cross(vector2))  # sign of vector1 and vector2 cross product
-    direction = det
+    rot_direction = det
 
-    return direction
+    return rot_direction
 
 
 def vec_trans(vector_in, const, angle, direction):

@@ -24,9 +24,10 @@ class Game:
 
         self.screen = screen
         self.clock = pygame.time.Clock()
-        self.elapsed_time = time.time()  # from new game start
+        self.elapsed_time = time.perf_counter()  # from new game start
         self.dt = 0  # time elapsed for 1 mainloop
         self.running = True  # game running
+        self.debug = True
 
         # --- Load JSON configuration ---
         self._load_all_configs()
@@ -204,7 +205,6 @@ class Game:
             pool.populate(size)
             self.objectpools[key] = pool
 
-        # print(f"[INIT] Object pools initialized from {config_path}")
         logger.info(f"[INIT] Object pools initialized from {config_path}")
 
     def new(self):
@@ -237,8 +237,9 @@ class Game:
                 if key == 'obstacles':
                     for obstacle in tog:
                         if obstacle.name == 'Mine':
+                            mine = self.objectpools['mine'].borrow_object()
                             x, y = obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2
-                            mine = self.objectpools['mine'].borrow_object(x, y)
+                            mine.activate(x, y)
 
         # --- Generate enemies ---
         # generate enemies from TiledMap object layers
@@ -253,12 +254,11 @@ class Game:
             else:
                 mobkey = 'dartfish'
 
+            mob = self.objectpools[mobkey].borrow_object()
             x, y = enemy.x + enemy.width / 2, enemy.y + enemy.height / 2
-            mob = self.objectpools[mobkey].borrow_object(x, y)
+            mob.activate(x, y)
 
             self.mob_sprites.add(mob)  # TESTING ONLY
-
-        # self.mesh = Mesh(self)  # load Mesh TESTING ONLY
 
     def run(self):
 
@@ -270,9 +270,8 @@ class Game:
 
             self.clock.tick_busy_loop(FPS)
 
-            self.dt = time.time() - self.elapsed_time  # current time - elapsed time on previous loop
+            self.dt = time.perf_counter() - self.elapsed_time  # current time - elapsed time on previous loop
             self.elapsed_time += self.dt  # update elapsed time for current loop
-
             # ---------------------------------------------
             # ✓ Store actual FPS this frame
             # ---------------------------------------------
@@ -421,26 +420,30 @@ class Game:
         #     self.camera.update(mob)
 
     def draw(self):
-
+        """Render one full game frame: map, sprites, HUD, and optional debug layers."""
         # TODO- apply adaptive rendering for draw():
-        # Performance (FPS) — if FPS drops, skip or reorder less critical elements (e.g. shadows, particle FX).
-        # sprite.priority  # optional: used to deprioritize FX when FPS is low
 
-        """Render the full game frame: background, sprites, HUD, and effects."""
-        # --- Display setup ---
-
+        # ---------------------------------------------
+        #   Display Setup
+        # ---------------------------------------------
         pygame.display.set_caption(f"{self.fps:.2f}")
         self.screen.fill(DEEPBLUE)
 
-        # --- Adaptive rendering thresholds ---
+        # ---------------------------------------------
+        #   Adaptive Rendering Thresholds
+        # ---------------------------------------------
         low_fps = self.fps < 30
         critical_only = self.fps < 20  # e.g. skip particle FX when very low FPS
 
-        # --- Draw map background ---
+        # ---------------------------------------------
+        #   Draw Background Map
+        # ---------------------------------------------
         offset_x, offset_y = self.camera.apply_rect(self.map_rect)
         self.screen.blit(self.map_img, (int(offset_x), int(offset_y)))
 
-        # --- Draw all sprites ---
+        # ---------------------------------------------
+        #   Draw Game Sprites
+        # ---------------------------------------------
         for sprite in self.active_sprites:
             # Skip non-critical FX under low FPS
             if critical_only and getattr(sprite, "priority", "") == "fx":
@@ -453,12 +456,18 @@ class Game:
             for sprite in self.hold_sprites:
                 sprite.draw()
 
-        # # --- HUD (health, stamina, weapon, ammo) ---
+        # ---------------------------------------------
+        #   HUD (health, stamina, weapon, ammo) ---
+        # ---------------------------------------------
+        # --- player hitpoints ---
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
+        # --- player stamina ---
         draw_sprite_bar(self.screen, 0.8 * SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
-        draw_text(self, self.player.current_weapon, 20, RED, 0.4 * SCREENWIDTH, 15)  # current weapon
+        # --- current weapon select ---
+        draw_text(self, self.player.current_weapon, 20, RED, 0.4 * SCREENWIDTH, 15)
+        # --- ammo ---
         draw_text(self, str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6 * SCREENWIDTH, 15)
-
+        # --- Mine countdown numbers ---
         for grid in self.map.layers['obstacles'].values():
             for sprite in grid:
                 if sprite.refkey == 'mine' and sprite.active:
@@ -466,87 +475,94 @@ class Game:
                     sprite.rect.centerx - self.camera.pos.x,
                     sprite.rect.centery - self.camera.pos.y)
 
-        # --- DEBUG ---
+        # ---------------------------------------------
+        #   Debug / Performance Monitoring
+        # ---------------------------------------------
         performance_FPS_monitoring(self.fps)
 
-        # ---- TESTING ONLY ---- #
+        # ---------------------------------------------
+        #   Testing + Debug (Heavy Overlays)
+        # ---------------------------------------------
+        if self.debug:  # optional flag for dev builds
+            self.draw_test_overlays()
 
+        pygame.display.flip()  # *after* drawing everything, flip the display
+
+    def draw_test_overlays(self):
+        """Draw all debug/test overlays.
+        Call only when self.debug == True to keep performance stable."""
+
+        # --- Grid overlay ---
         draw_grid(self)
-        # self.mesh.draw()
 
-        # current_grids = str(self.player.current_grids)
-        # self.draw_text(current_grids, 22, RED, SCREENWIDTH / 2, 15)
+        # --- Player rectangles ---
+        rect = pygame.Rect(
+            self.player.rect.x - self.camera.pos.x, self.player.rect.y - self.camera.pos.y, self.player.rect.width,self.player.rect.height,
+        )
+        hitrect = pygame.Rect(
+            self.player.hitrect.x - self.camera.pos.x, self.player.hitrect.y - self.camera.pos.y, self.player.hitrect.width, self.player.hitrect.height,
+        )
 
-        # camera.rect offset
+        pygame.draw.rect(self.screen, WHITE, rect, 2)
+        pygame.draw.rect(self.screen, RED, hitrect, 2)
 
-        camera_position = str((round(self.camera.pos.x, 1), round(self.camera.pos.y, 1)))
-        # self.draw_text(camera_position, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
+        # Player start position
+        # pygame.draw.circle(
+        #     self.screen, WHITE,
+        #     (int(self.player.spawn_pos.x - self.camera.pos.x),
+        #      int(self.player.spawn_pos.y - self.camera.pos.y)),
+        #     10, 1
+        # )
+        # Player current position
+        pygame.draw.circle(
+            self.screen, RED,
+            (int(self.player.pos.x - self.camera.pos.x),
+             int(self.player.pos.y - self.camera.pos.y)),
+            10, 1
+        )
 
-        # player data
-        player_x = self.player.pos.x + self.camera.pos.x
-        player_y = self.player.pos.y + self.camera.pos.y
-
-        pos = str(self.player.pos)
-        # self.draw_text(pos, 22, RED, 100, 15)
-        velocity = str(self.player.vel)
-        # self.draw_text(velocity, 22, RED, SCREENWIDTH - 50, 15)
-
-        # draw player rect
-
-        rect = pygame.Rect(self.player.rect.x - self.camera.pos.x, self.player.rect.y - self.camera.pos.y, self.player.rect.width, self.player.rect.height)
-        hitrect = pygame.Rect(self.player.hitrect.x - self.camera.pos.x, self.player.hitrect.y - self.camera.pos.y, self.player.hitrect.width, self.player.hitrect.height)
-        pygame.draw.rect(self.screen, WHITE, rect, 2)  # player rect
-        pygame.draw.rect(self.screen, RED, hitrect, 2)  # player hitrect
-        pygame.draw.circle(self.screen, WHITE, (int(self.player.startpos.x - self.camera.pos.x), int(self.player.startpos.y - self.camera.pos.y)), 10, 1)
-        pygame.draw.circle(self.screen, RED, (int(self.player.pos.x - self.camera.pos.x), int(self.player.pos.y - self.camera.pos.y)), 10, 1)
-        # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.direction.x * 100, self.player.pos.y + self.player.direction.y * 100), 1)  # player velocity vector
-        # pygame.draw.line(self.screen, GREEN, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + self.player.vel.x * 10, self.player.pos.y + self.player.vel.y * 10), 3)  # player velocity vector
-
-        for grid in self.map.layers['weapons'].values():
-            for sprite in grid:
-                # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)  # missile rect
-                # pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)  # missile hitrect
-                pass
-
-        # mob data
+        # --- Enemies debug ---
         for mob in self.mob_sprites:
-            x_pos = mob.pos.x - self.camera.pos.x
-            y_pos = mob.pos.y - self.camera.pos.y
+            x = mob.pos.x - self.camera.pos.x
+            y = mob.pos.y - self.camera.pos.y
 
-            # draw_sprite_bar(self.screen, x_pos - 50, y_pos - 50, mob.hitpoints / mob.__class__.hitpoints, GREEN, YELLOW, RED)
+            # dif = str(int(mob.dif))
+            # draw_text(self, dif, 20, RED, SCREENWIDTH - 25, 15)
+
+            # --- target position --- #
+            pygame.draw.circle(
+                self.screen, RED,
+                (int(mob.target.x - self.camera.pos.x),
+                 int(mob.target.y - self.camera.pos.y)),
+                10, 1
+            )
+
+            # --- mob vectors --- #
+            # pygame.draw.line(self.screen, WHITE, (x, y), (x + mob.target_vec.x, y + mob.target_vec.y), 3)  # target vector
+            
+            # Additional mob debugging kept available for testing:
             # pygame.draw.rect(self.screen, WHITE, mob.rect, 2)
             # pygame.draw.rect(self.screen, RED, mob.hitrect, 2)
+            # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)
 
-            anti_g = str((round(mob.anti_g.x, 3), round(mob.anti_g.y, 3)))
-            anti_g_size = str((round(mob.anti_g.length(), 3)))
-            # self.draw_text(anti_g_size, 22, RED, SCREENWIDTH / 2, SCREENHEIGHT - 15)
+        # --- Weapon hitboxes ---
+        for grid in self.map.layers['weapons'].values():
+            for sprite in grid:
+                pass
+                # pygame.draw.rect(self.screen, WHITE, sprite.rect, 2)
+                # pygame.draw.rect(self.screen, RED, sprite.hitrect, 2)
 
-            # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)  # draw effective radius
-            pygame.draw.circle(self.screen, RED, (int(mob.target.x - self.camera.pos.x), int(mob.target.y - self.camera.pos.y)), 10, 1)
-            # pygame.draw.circle(self.screen, RED, (int(x_pos), int(y_pos)), 10, 1)
-            vel = str((round(mob.vel[0], 1), round(mob.vel[1], 1)))
-            speed = str(round(mob.vel.length(), 1))
-            # self.draw_text(speed, 22, GREEN, SCREENWIDTH / 2, SCREENHEIGHT - 35)
+        # --- Spawn tiles ---
+        # for col, row in self.map.valid_spawn_tiles:
+        #     px, py = col * self.map.tilesize, row * self.map.tilesize
+        #     pygame.draw.rect(self.screen, RED,
+        #                      (px - self.camera.pos.x, py - self.camera.pos.y,
+        #                       self.map.tilesize, self.map.tilesize),
+        #                      1)
 
-            # target_angle = str(round(mob.target_angle, 0))
-
-            # draw vectors
-
-            # pygame.draw.line(self.screen, WHITE, (x_pos, y_pos), (x_pos + mob.target_vec.x, y_pos + mob.target_vec.y), 3)  # target vector
-            # pygame.draw.line(self.screen, RED, (x_pos, y_pos), (x_pos + mob.anti_g.x*10000, y_pos + mob.anti_g.y*10000), 3)  # accn away from wall tiles
-            # pygame.draw.line(self.screen, GREEN, (x_pos, y_pos), (x_pos + (mob.vel.x*5), y_pos + (mob.vel.y*5)), 3)  # velocity vector
-            # pygame.draw.line(self.screen, GREEN, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.alt_rad.x, mob.pos.y + mob.alt_rad.y), 3)  # current rad from origin
-            # pygame.draw.line(self.screen, YELLOW, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.target_rad.x, self.player.pos.y + mob.target_rad.y), 6)  # target rad from player to origin
-            # pygame.draw.line(self.screen, RED, (self.player.pos.x, self.player.pos.y), (self.player.pos.x + mob.actual_rad.x, self.player.pos.y + mob.actual_rad.y), 3)  # final rad after subtending angle delta
-
-            # pygame.draw.line(self.screen, RED, (mob.pos.x, mob.pos.y), (mob.pos.x + mob.vel.x, mob.pos.y + mob.vel.y), 3)  # velocity vector
-
-        # for grid in self.map.layers['weapons'].values():
-        #     for sprite in grid:
-        #         if sprite.refkey == 'mine':
-        #             self.draw_text(sprite.gridref, 25, WHITE, sprite.pos.x + self.camera.camera_rect.x, sprite.pos.y + self.camera.camera_rect.y)
-        #             pygame.draw.circle(self.screen, RED, (int(sprite.pos.x + self.camera.camera_rect.x), int(sprite.pos.y + self.camera.camera_rect.y)), sprite.affect_rad, 1)  # draw target position
-        pygame.display.flip()  # *after* drawing everything, flip the display
+        # --- Camera Position Example ---
+        # cam = f"Camera: {round(self.camera.pos.x,1)}, {round(self.camera.pos.y,1)}"
+        # draw_text(self, cam, 22, RED, SCREENWIDTH/2, SCREENHEIGHT - 15)
 
     def show_start_screen(self):
         # game splash/start screen

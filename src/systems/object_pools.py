@@ -41,7 +41,7 @@ class ObjectPool(sprite.Group):
             sprite.ID = f"'{self.sprite_class}'#{i+1}"
             self.add(sprite)
 
-    def borrow_object(self, new_x, new_y):
+    def borrow_object(self):
         """
         Borrow an object from the pool.
         Repositions and activates the object on the map.
@@ -54,14 +54,10 @@ class ObjectPool(sprite.Group):
             logger.warning(f"[POOL] '{self}' pool exhausted—borrowing more than configured max.")
 
         # Borrow one obj from pool
+        # TODO Setup sprite method, activate, for mobs
         for sprite_obj in self:
-            sprite_obj.pos = vec(new_x, new_y)
-            sprite_obj.rect.center = sprite_obj.pos
-            sprite_obj.hitrect.center = sprite_obj.rect.center + (sprite_obj.direction * sprite_obj.HRoffset)
-
-            sprite_obj.add_to_map_layer()
-            self.remove(sprite_obj)  # remove from pool after adding to active map_layer
-            return sprite_obj  # currently only missile sprites return in use
+            self.remove(sprite_obj)  # remove from pool
+            return sprite_obj  # return sprite
 
     def rtrn_object(self, sprite_obj):
         """ Return a used object to pool and reset its state """

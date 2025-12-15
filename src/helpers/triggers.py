@@ -2,7 +2,6 @@ def interval_trigger(timer, interval, dt):
     """ Return True (+1) every nth interval e.g. n = 3 returns 0, 0, 1, 0, 0, 1, 0, 0, 1 ....
     (where n increases by increment d every loop)"""
     trigger = ((timer % interval) + dt) // interval  # returns 1 at the end of every interval, else returns 0
-
     return trigger
 
 

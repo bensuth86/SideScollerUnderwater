@@ -129,3 +129,34 @@ def continuous_collision_detection(self, map_layer):
         for sprite in grid:
             if self.rect.clipline(test_rect.center, self.rect.center):
                 return True
+
+
+def _get_random_target(self):
+    """Pick random target within map bounds."""
+    gx, gy = self.game.map.gridwidth, self.game.map.gridheight
+    tx = clamp(self.pos.x + choice([-1, 1]) * 2 * gx, 4 * gx, self.game.map.width - 4 * gx)
+    ty = clamp(self.pos.y + choice([-1, 1]) * 2 * gy, 4 * gy, self.game.map.height - 4 * gy)
+    return vec(tx, ty)
+
+
+def avoid_walls(self):
+    """ SHELVED; Apply repulsion force away from nearby walls"""
+
+    for ref in self.adjacent_grids:
+        for ptf in self.game.map.layers['platforms'][ref]:
+            displacement = vec(ptf.rect.centerx, ptf.rect.centery) - self.pos  # between mob and centre point of platform tile
+            anti_g = -displacement * (self.__class__.mass / displacement.length()**2)  # accelleration away from wall- proportional to current speed, inversly proportional to displacemnt squared
+            self.vel += anti_g
+            self.anti_g = anti_g  # TESTING only (drawing)
+
+def target_error(self):
+    """ Intermittently switch target position by a percentage of the target vector for less predictable mob movement.
+    Amount target pos varies decreases as mob approaches target"""
+    swc = switch_interval(self.timer, self.__class__.switch_freq)
+    direction = swc or 1
+    perp_vec = vec(direction * self.target_vec.y, -direction * self.target_vec.x)
+
+    err = randrange(0, self.__class__.error_margin + self.__class__.error_var, 10)
+    error_vec = perp_vec * (err / 100)
+    error_vec = vec(0, 0)  # comment out to apply target_error
+    return self.target + error_vec

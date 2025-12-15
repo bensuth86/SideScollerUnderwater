@@ -5,6 +5,7 @@ from string import ascii_uppercase
 
 from ..helpers import clamp
 from ..settings import SCREENWIDTH, SCREENHEIGHT
+from random import choice
 from loggers import check_valid_grid
 
 
@@ -53,6 +54,11 @@ class TiledMap:
         self.mobile_layers = {"players", "obstacles", "weapons", "enemies"}  # sprites can move from grid to grid
 
         self.active_gridrefs = []
+
+        # For generating spawn points
+        self.platform_tiles = set()  # store platform tile coords (tile-based)
+        self.spawn_radius = 3  # min Manhattan distance from any platform
+        self.valid_spawn_tiles = []  # will store precomputed valid spawn tiles
 
     def _generate_grid_refs(self):
         """Generate grid coordinate labels for map columns and rows."""
@@ -108,6 +114,57 @@ class TiledMap:
 
         return self.active_gridrefs
 
+    def compute_valid_spawn_tiles(self):
+        """
+        Identify all tile coordinates that are >= N tiles away from any platform tile.
+        Distance is measured in Manhattan distance.
+        """
+
+        max_cols = self.tmxdata.width
+        max_rows = self.tmxdata.height
+        radius = self.spawn_radius
+
+        valid = []
+
+        for col in range(max_cols):
+            for row in range(max_rows):
+
+                # Skip if this is a platform tile
+                if (col, row) in self.platform_tiles:
+                    continue
+
+                # Check distance from all platform tiles
+                too_close = False
+                for px, py in self.platform_tiles:
+                    dist = abs(px - col) + abs(py - row)  # Manhattan distance
+
+                    if dist < radius:
+                        too_close = True
+                        break
+
+                if not too_close:
+                    valid.append((col, row))
+
+        self.valid_spawn_tiles = valid
+        print(f"[SPAWNS] Found {len(valid)} valid spawn tiles.")
+
+    def get_random_spawn_point(self):
+        """
+        Returns a random spawn position in pixel coordinates at centre of the tile.
+        Must be called AFTER compute_valid_spawn_tiles().
+        """
+
+        if not self.valid_spawn_tiles:
+            raise RuntimeError("Valid spawn tiles have not been computed yet!")
+
+        col, row = random.choice(self.valid_spawn_tiles)
+
+        # Convert tile coords → world pixel coords
+        x = col * self.tilesize + self.tilesize // 2
+        y = row * self.tilesize + self.tilesize // 2
+
+        return x, y
+
     def read_tiled_data(self, surface):
         """ Generate platform tiles and single map surf image for drawing """
         # ti = self.tmxdata.get_tile_image_by_gid  # shorthand function call
@@ -122,6 +179,9 @@ class TiledMap:
                         if layer.name == 'Platforms':
                             # generate platform tile sprites and store to platforms map layer
                             self.Platform(self.game, x, y, tile_width, tile_height)
+                            # Store tile-grid coordinate, not pixel coordinates
+                            self.platform_tiles.add((col, row))
+        self.compute_valid_spawn_tiles()
 
     def generate_map(self):
 
