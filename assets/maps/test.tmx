@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="40" tilewidth="46" tileheight="46" infinite="0" nextlayerid="18" nextobjectid="369">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="80" height="40" tilewidth="46" tileheight="46" infinite="0" nextlayerid="18" nextobjectid="385">
  <tileset firstgid="1" name="platforms" tilewidth="46" tileheight="46" tilecount="80" columns="8">
   <image source="../Images/platforms.png" trans="000000" width="368" height="460"/>
  </tileset>
@@ -143,17 +143,15 @@
  </layer>
  <objectgroup id="9" name="mobile_sprites"/>
  <objectgroup id="16" name="players">
-  <object id="364" name="Player1" x="230" y="552" width="46" height="92"/>
+  <object id="364" name="Player1" x="184" y="414" width="46" height="92"/>
  </objectgroup>
  <objectgroup id="17" name="obstacles">
   <object id="250" name="Mine" x="3220" y="92" width="276" height="276"/>
-  <object id="328" name="Mine" x="552" y="1472" width="276" height="276"/>
   <object id="329" name="Mine" x="184" y="1472" width="276" height="276"/>
-  <object id="330" name="Mine" x="184" y="1104" width="276" height="276"/>
  </objectgroup>
  <objectgroup id="15" name="enemies">
-  <object id="361" name="Enemy" x="552" y="644" width="46" height="46"/>
-  <object id="365" name="daddyfish" x="2438" y="920" width="322" height="322"/>
+  <object id="365" name="daddyfish" x="2622" y="1242" width="322" height="322"/>
+  <object id="379" name="Enemy" x="276" y="184" width="46" height="46"/>
  </objectgroup>
  <objectgroup id="14" name="pickups">
   <object id="133" name="stamina" gid="199" x="1518" y="1058" width="92" height="92"/>

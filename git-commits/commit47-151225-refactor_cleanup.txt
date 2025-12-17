@@ -1,0 +1,25 @@
+1) replace time.time() with .perf_counter()
+
+2) Cleanup draw()- seperate method for draw_debug
+
+3) normalise vector helper function
+
+4) Instances of game mechanics refering to rect replaced with hitrect:
+	-sprite.rect only for drawing transforming image
+	-sprite.hitrect for all sprite mechanics
+
+5) Sprite activate method- called after sprite borrowed from object pool (previous mine.activate method
+replace with trigger())
+
+6) rotate_about_centre()- sprite angle now in discrete increments of 5 deg
+
+7) Archived enemy target_error method
+
+8) Mob movement tweaks
+
+9)Map_manager- method to generate potential spawn locations
+
+10) Object pool- borrow_object method refactored
+
+
+

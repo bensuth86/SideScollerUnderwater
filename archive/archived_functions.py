@@ -149,6 +149,7 @@ def avoid_walls(self):
             self.vel += anti_g
             self.anti_g = anti_g  # TESTING only (drawing)
 
+
 def target_error(self):
     """ Intermittently switch target position by a percentage of the target vector for less predictable mob movement.
     Amount target pos varies decreases as mob approaches target"""
@@ -160,3 +161,19 @@ def target_error(self):
     error_vec = perp_vec * (err / 100)
     error_vec = vec(0, 0)  # comment out to apply target_error
     return self.target + error_vec
+
+
+def change_trajectoryi(self):
+    """ Will switch geometric progression from inward to outward spiral path, so mob will intersect target at current target.pos
+        Uses control variable c: if c=1 will continue inward spiral by default, if c=-1 will switch to outward spiral path """
+    alt_rad = get_radius_vector(self.vel, self.theta, 1/self.geo_pro, self.rot_direction)  # radius vector from origin for outward spiral if currently following inward spiral path, and vice versa
+    target_rad = alt_rad - self.target_vec    # radius vector between target and origin of alternate spiral trajectory
+    delta = get_angleii(alt_rad, target_rad, self.rot_direction)
+    dif = (alt_rad.length()*((1/self.geo_pro)**(delta/self.theta))) - target_rad.length()  # if difference = 0 for current mob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
+    self.dif = dif  # TESTING
+    c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
+
+    # TODO minimum speed - switch to outward path
+    c = 1 if self.vel.length() > (Dartfish.max_speed + (0.2*c*Dartfish.max_speed)) else c  # if vel exceeds max limit force inward path
+
+    self.geo_pro = Dartfish.geo_pro ** c

@@ -1,9 +1,10 @@
 import pygame
 import logging
-from math import e, log, pi, tanh
+from math import e, log, pi, sqrt
 from random import choice, randrange, randint
 from itertools import chain
 
+from .settings import TARGET_FPS
 from .pickup_config import PICKUP_CATGRY
 from .helpers import normalise, rect_to_vectors, sign, interval_trigger, switch_interval, vec_intersect, vec_trans, get_radius_vector, get_angleii, turn_direction, clamp
 from .visual_effects import SmokeParticle
@@ -197,7 +198,7 @@ class Mobile_sprite(StaticSprite):
         hits = []
         for grid_ref in self.adjacent_grids:
             for sprite in self.game.map.layers[map_layer][grid_ref]:
-                if test_rect.colliderect(sprite.rect):
+                if test_rect.colliderect(sprite.hitrect):
                     hits.append(sprite)
 
         return hits
@@ -845,6 +846,7 @@ class Enemy(Mobile_sprite):
         self.refresh_rate = 0.2 # rate animation changes slide (0.5 - changes twice per second)
 
         # initialise target position and target_vector
+        self.target_buffer = 2 * self.game.map.tilesize
         self.target = vec(self.pos.x, self.pos.y)
         self.target_vec = self.pos - self.target
 
@@ -894,7 +896,7 @@ class Enemy(Mobile_sprite):
             targety = clamp(targety, self.game.map.gridheight, self.game.map.height - self.game.map.gridheight)
 
             new_target = vec(targetx, targety)
-            if not self.check_intersect(new_target):
+            if not self.path_intersects_platform(new_target):
                 self.target = new_target  # if platform not between target and mob position
             else:
                 self.target = vec(self.pos.x, self.pos.y)  # set target to current position - will trigger switch target to True on next loop
@@ -904,11 +906,12 @@ class Enemy(Mobile_sprite):
         player_vec = self.game.player.pos - self.pos
         if player_vec.length_squared() < self.target_player_rad ** 2:
             target = vec(self.game.player.rect.center)
-            if not self.check_intersect(target):
+            if not self.path_intersects_platform(target):
                 return True
 
-    def check_intersect(self, target):
+    def path_intersects_platform(self, target):
         """ Check if platform is between current position and target vect"""
+        # TODO if target behind platform set new target to be in direction of current vel
         for ref in self.adjacent_grids:
             for ptf in self.game.map.layers['platforms'][ref]:
                 for side in ptf.rect_sides:
@@ -955,7 +958,7 @@ class Daddyfish(Enemy):
     refkey = 'daddyfish'
     hitpoints = 100
     maxspeed = 6
-    mass = 5
+    mass = 10
 
     error_margin = 5  # average percentage error for tracking target vec  (5%
     error_var = 2  # variance in percentage error ( 5 +/- 2% )
@@ -971,72 +974,114 @@ class Daddyfish(Enemy):
         self.vel = vec(1, 0)
         self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
 
+    def setup_hitrect(self):
+
+        scale = 0.8
+
+        size = (self.rect.width * scale,
+                self.rect.height * scale)
+
+        self.hitrect = pygame.Rect((0, 0), size)
+        self.hitrect.center = self.pos + (normalise(self.direction) * self.HRoffset)
+
     def chase_target(self):
         """Get acceleration vector directed to target.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
         drag = self.accn / self.__class__.maxspeed  # increases with vel until maxspeed reached
         acc_vec = normalise(self.target_vec) * self.accn
-        self.vel += acc_vec - drag * self.vel
+        if self.apply_target_buffer():
+            self.vel += acc_vec - drag * self.vel
 
-        self.direction = normalise(self.target_vec)
+        self.direction = normalise(self.vel)
+
+    def apply_target_buffer(self):
+        """ Return True if mob otuside target buffer"""
+        if self.target_vec.length_squared() > self.target_buffer**2:
+            return True
 
 
 class Dartfish(Enemy):
 
     map_layer = 'enemies'
     refkey = 'dartfish'
+
     hitpoints = 10
+    max_speed = 12
+    mass = 20
+
     vel = vec(6, 0)  # initial velocity
-    max_speed = 14
-    mass = 12
-    error_margin = 25  # average percentage error for tracking target vec  (25%
-    error_var = 30  # variance in percentage error ( 25 +/- 30% )
-    switch_freq = 0.2  # recalc target_error every n seconds (don't confuse with change target idle_swim fnc)
 
     # Spiral trajectory parameters- follows log spiral path
-    Qrot = 1/100  # geometric progession of turning radius after subtends 360deg e.g. q = 0.1- radius 1/10 of initial radius.  Set to <1 by default for inward spiral
-    b = log(Qrot)/(2*pi)  # growth rate of the log spiral trajectory (inward by default)
-    theta = pi/60  # angle increment subtended every iteration
-    geo_pro = e ** (b * theta)  # geometric increase/ decrease of turning radius from origin for every increment
+    Qrot = 100  # geometric progession of turning radius after subtends 360deg e.g. q = 100- rad increases 100 that of initial radius.  Must be set to >1 by default for outward spiral for current setup.
+    spiral_b = log(Qrot)/(2*pi)  # growth rate of the log spiral trajectory (inward by default)
+    dtheta = pi/40  # angle increment subtended every iteration
+    geo_prog = e ** (spiral_b * dtheta)  # geometric increase/ decrease of turning radius from origin for every increment
 
     def __init__(self, game, x, y):
 
         super().__init__(game, x, y)
         self.hitpoints = Dartfish.hitpoints
         self.vel = Dartfish.vel
-        self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
 
-    def spiral_turn(self, rot_direction):
-        """ Switch from either log spiral or exp spiral trajectory to close in on target_vec"""
+        # Passive swimming
+        self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
+        self.rot_direction = 1  # sprite will spiral clockwise by default: -1 = anticlockwise
+
+    def get_spiral_param(self):
+        """ Adjust class parameters with varying FPS so trajectories account for time-steps """
+        actual_fps = clamp(self.game.fps, 20, 120)  # get actual fps limited to 20 FPS minimum, 120 FPS max
+        self.dtheta = self.__class__.dtheta * TARGET_FPS / actual_fps
+        self.Qrot = self.__class__.Qrot * TARGET_FPS / actual_fps
+        self.spiral_b = log(self.Qrot)/(2*pi)
+        self.geo_prog = e ** (self.spiral_b * self.dtheta)
+
+    def get_rot_direction(self):
+        """ Choose turning direction- anticlockwise (-1), clockwise (1)
+         based on current velocity vs target vector.  Mob will turn towards target
+         then close in on the target buffer following a triangular wave pattern
+         within buffer diamter"""
+
+        unit_target_vec = normalise(self.target_vec)
+        unit_vel = normalise(self.vel)
+
+        mag_t = sqrt(self.target_vec.length()**2 + self.target_buffer**2)  # return magnitude for vector_sum of target_vec and perpendicular target radius vec
+        cross_sign = unit_target_vec.cross(unit_vel*mag_t)  # cross product of unit target vector and scaled current vel
+
+        if cross_sign > self.target_buffer:  # if greater than target_buffer radius, turn anticlockwise
+            # print('Anticlockwise')
+            return -1
+        if cross_sign < - self.target_buffer:  # if less than -ve target_buffer radius, turn clockwise
+            # print('Clockwise')
+            return 1
+        return self.rot_direction
+
+    def spiral_turn(self):
+        """ Time- step independent spiral steering: switch from either log spiral or exp spiral trajectory to close in on target_vec"""
 
         # find new velocity vector from initial vel and radius vectors to the origin of the spiral path
-        prev_rad = get_radius_vector(self.vel, self.theta, self.geo_pro, rot_direction)  # radius from spiral origin to position on previous iteration
+        prev_rad = get_radius_vector(self.vel, self.dtheta, self.geo_prog, self.rot_direction)  # radius from spiral origin to position on previous iteration
         # self.current_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro), self.theta, direction)
-        final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_pro**2), 2*self.theta, rot_direction)  # radius from origin after self.pos updated with new_vel
+        final_rad = vec_trans(prev_rad, prev_rad.length()*(self.geo_prog**2), 2*self.dtheta, self.rot_direction)  # radius from origin after self.pos updated with new_vel
         self.vel = prev_rad - final_rad - self.vel  # New vel vector the difference between prior rad, current velocity and the final rad vectors
 
-        # return final_rad
+        # clamp speed
+        speed = self.vel.length()
+        if speed > self.max_speed:
+            self.vel *= self.max_speed / speed
 
-    def change_trajectory(self, rot_direction):
-        """ Will switch geometric progression from inward to outward spiral path, so mob will intersect target at current target.pos
-            Uses control variable c: if c=1 will continue inward spiral by default, if c=-1 will switch to outward spiral path """
-        alt_rad = get_radius_vector(self.vel, self.theta, 1/self.geo_pro, rot_direction)  # radius vector from origin for outward spiral if currently following inward spiral path, and vice versa
-        target_rad = alt_rad - self.target_vec    # radius vector between target and origin of alternate spiral trajectory
-        delta = get_angleii(alt_rad, target_rad, rot_direction)
-        dif = (alt_rad.length()*((1/self.geo_pro)**(delta/self.theta))) - target_rad.length()  # if difference = 0 for current mob position then mob will intersect player by changing trajectory from inward to outward spiral (vice versa)
-        self.dif = dif  # TESTING
-        c = sign(dif)  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
-
-        # TODO minimum speed - switch to outward path
-        c = 1 if self.vel.length() > (Dartfish.max_speed + (0.2*c*Dartfish.max_speed)) else c  # if vel exceeds max limit force inward path
-
-        self.geo_pro = Dartfish.geo_pro ** c
+    def change_trajectory(self):
+        """Switch between inward / outward spiral dpending on travelling away from / towards target respectively"""
+        c = sign(self.vel.dot(self.target_vec))  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
+        self.geo_prog = self.geo_prog ** c
+        print(self.geo_prog)
 
     def chase_target(self):
-
-        rot_direction = turn_direction(self.vel, self.target_vec)
-        self.spiral_turn(rot_direction)
-        self.change_trajectory(rot_direction)
+        """ High level steps to close in on target following spiral trajectory """
+        self.get_spiral_param()
+        self.rot_direction = self.get_rot_direction()
+        self.spiral_turn()
+        self.change_trajectory()
+        # TODO Apply target buffer
 
         self.direction = normalise(self.vel)
 

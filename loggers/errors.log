@@ -1,15 +1,16 @@
-[WARNING] 14:10:50 - loggers.logging_fnc - [IMAGES] 'harpoon' height doesn't fit tile size.
-[WARNING] 14:10:50 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_anti_g.npy
-[WARNING] 14:10:50 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\test_waterflow.npy
-[WARNING] 14:10:50 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_waterflow.npy
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:10:50 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 14:12:11 - loggers.logging_fnc - [POOL CHECK] Sprite '<class 'src.sprites.Dartfish'>'#1 belongs to 2 groups: [<Group(2 sprites)>, <ObjectPool(15 sprites)>]. Expected ONLY the pool.
+[WARNING] 23:44:09 - loggers.logging_fnc - [IMAGES] 'harpoon' height doesn't fit tile size.
+[WARNING] 23:44:09 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_anti_g.npy
+[WARNING] 23:44:09 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\test_waterflow.npy
+[WARNING] 23:44:09 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_waterflow.npy
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:44:09 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 23:45:12 - loggers.logging_fnc - [POOL CHECK] Sprite '<class 'src.sprites.Dartfish'>'#1 belongs to 2 groups: [<ObjectPool(15 sprites)>, <Group(2 sprites)>]. Expected ONLY the pool.
+[WARNING] 23:45:20 - loggers.logging_fnc - [POOL CHECK] Sprite '<class 'src.sprites.Daddyfish'>'#1 belongs to 2 groups: [<ObjectPool(15 sprites)>, <Group(2 sprites)>]. Expected ONLY the pool.

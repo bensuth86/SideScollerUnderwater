@@ -27,7 +27,7 @@ class Game:
         self.elapsed_time = time.perf_counter()  # from new game start
         self.dt = 0  # time elapsed for 1 mainloop
         self.running = True  # game running
-        self.debug = True
+        self.debug = False
 
         # --- Load JSON configuration ---
         self._load_all_configs()
@@ -344,6 +344,7 @@ class Game:
         Finally transfer marked sprites to new grids"""
 
         dt_scaled = self.dt * TARGET_FPS
+
         sprites_to_transfer = []
 
         # --- Call update for active grids ---
@@ -538,11 +539,20 @@ class Game:
             )
 
             # --- mob vectors --- #
-            # pygame.draw.line(self.screen, WHITE, (x, y), (x + mob.target_vec.x, y + mob.target_vec.y), 3)  # target vector
-            
-            # Additional mob debugging kept available for testing:
-            # pygame.draw.rect(self.screen, WHITE, mob.rect, 2)
-            # pygame.draw.rect(self.screen, RED, mob.hitrect, 2)
+            pygame.draw.line(self.screen, WHITE, (x, y), (x + mob.target_vec.x, y + mob.target_vec.y), 3)  # target vector
+            pygame.draw.line(self.screen, RED, (x, y), (x + mob.vel.x, y + mob.vel.y), 3)  # mob vel
+
+            # --- mob rectangles ---
+            rect = pygame.Rect(
+                mob.rect.x - self.camera.pos.x, mob.rect.y - self.camera.pos.y, mob.rect.width, mob.rect.height,
+            )
+            hitrect = pygame.Rect(
+                mob.hitrect.x - self.camera.pos.x, mob.hitrect.y - self.camera.pos.y, mob.hitrect.width, mob.hitrect.height,
+            )
+
+            # pygame.draw.rect(self.screen, WHITE, rect, 2)
+            pygame.draw.rect(self.screen, RED, hitrect, 2)
+
             # pygame.draw.circle(self.screen, WHITE, (int(mob.rect.centerx), int(mob.rect.centery)), int(mob.radius), 1)
 
         # --- Weapon hitboxes ---
