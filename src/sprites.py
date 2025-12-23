@@ -29,8 +29,6 @@ class StaticSprite(pygame.sprite.Sprite):
         self.rect.topleft = (self.pos.x, self.pos.y)
         self.hitrect = self.rect.copy()
 
-        self.target_radius = self.game.map.tilesize  # area from rect center which pursuing sprites will aim for
-
         self.map_layer = self.__class__.map_layer
         self.draw_layer = 1  # draw_order
         self.priority = True  # used to deprioritize FX when FPS is low
@@ -327,7 +325,7 @@ class Missile(Mobile_sprite):
 
     def activate(self, player):
         """ On player.shoot() borrow missile sprite from pool, set position offset from player, direction and add to weapons map_layer"""
-        self.direction = vec(player.direction.x, player.direction.y)
+        self.direction = player.aim_direction
         # set position such that hitrect located at player_rect center
         self.spawn_pos = vec(player.pos.x, player.pos.y)
         self.pos = vec(player.pos.x, player.pos.y)
@@ -594,6 +592,7 @@ class Player(Mobile_sprite):
         self.current_scheme = "axial"
 
         # Weapon system
+        self.aim_direction = vec(self.direction.x, self.direction.y)
         self.current_weapon = "harpoon"
         self.weaponstate = {"harpoon": True, "torpedo": True, "plasmagun": False}  # Toggle weapons inventory
         self.ammo = {"harpoon": 200, "torpedo": 500, "plasmagun": 50}
@@ -624,9 +623,9 @@ class Player(Mobile_sprite):
 
     def get_mouse_rotation(self):  #
         """ Handle mouse movement with sensitivity and inversion: sensitivity range set betweeen 0.1 - 2 for current setup"""
-        settings = self.game.controls["mouse"]["settings"]
-        sensitivity = settings.get("sensitivity", 2.0)
-        invert_y = settings.get("invert_y", False)
+        mouse = self.game.controls["mouse"]["settings"]
+        sensitivity = mouse.get("sensitivity", 2.0)
+        invert_y = mouse.get("invert_y", False)
 
         pygame.mouse.set_visible(False)
         dx, dy = pygame.mouse.get_rel()  # get the amount of mouse movement (x, y)
@@ -742,6 +741,13 @@ class Player(Mobile_sprite):
         if self.weaponstate[weaponkey]:  # if player carrying selected weapon
             self.current_weapon = weaponkey
 
+    def aim_weapon(self):
+
+        scrollH, _ = self.get_mouse_rotation()
+        self.aim_direction = self.aim_direction.rotate(scrollH)
+        self.direction = self.aim_direction.copy()
+        return self.aim_direction
+
     def shoot(self, keys):
         shoot_key = self.game.controls["keyboard"]["actions"]["shoot"]
         if pygame.mouse.get_pressed()[0] or keys[shoot_key]:
@@ -801,6 +807,7 @@ class Player(Mobile_sprite):
 
         if not self.damaged:
             self.control_scheme.get(self.current_scheme)(keys)  # movement control scheme
+            self.aim_weapon()
             self.shoot(keys)
 
         else:
@@ -833,14 +840,14 @@ class Enemy(Mobile_sprite):
     hitpoints = 10
     deathanimation = 'enemydeath'
 
+    # Enemy States
+    PASSIVE = 0
+    AGGRESSIVE = 1
+
     def __init__(self, game, x, y):
 
         super().__init__(game, x, y)
         self.spawn_pos = vec(x, y)
-
-        self.territory_rad = 1.5 * self.game.map.gridwidth
-        self.target_player_rad = 2 * game.map.gridwidth
-        # self.target_player_rad = 1 * game.map.tilesize
 
         self.current_animation = game.mobile_sprite_images[self.refkey]
         self.refresh_rate = 0.2 # rate animation changes slide (0.5 - changes twice per second)
@@ -849,6 +856,13 @@ class Enemy(Mobile_sprite):
         self.target_buffer = 2 * self.game.map.tilesize
         self.target = vec(self.pos.x, self.pos.y)
         self.target_vec = self.pos - self.target
+
+        # Set modes
+        self.modes = {
+            "passive": True,
+            "aggressive": False,
+            "attack": False
+        }
 
         Enemy.num_of_mobs += 1
 
@@ -865,20 +879,31 @@ class Enemy(Mobile_sprite):
         """Simple elastic bounce response for wall collisions"""
         hits = super().discrete_collision_detection(axis, 'platforms')
         if hits:
-            self.vel[axis] *= -1 / 2  # bounce off walls
+             self.vel[axis] *= -1 / 2  # bounce off walls
 
-    def get_target_vector(self):
-        """Compute new vector toward target with random perturbation."""
+    def get_sprite_target(self, sprite):
+        """Switch target to player if within chase radius and unobstructed."""
+        # player_vec = sprite.pos - self.pos
+        if (sprite.pos - self.pos).length_squared() < self.target_player_rad ** 2:
+            self.set_mode(self.modes, "aggressive")
+            self.target = vec(sprite.pos.x, sprite.pos.y)
+            return True
 
-        new_target_vec = self.target - self.pos
-        self.target_vec = new_target_vec or self.target_vec  # if new_target_vec is zero return previous target_vec
+    def get_random_target(self):
 
-    def apply_target_buffer(self):
-        """ Pursue any point within self.target_radius of self.target rather than close in exact point"""
-        pass
+        step = self.territory_rad / 4
+        targetx = randrange(int(self.spawn_pos.x - self.territory_rad), int(self.spawn_pos.x + self.territory_rad), step)
+        targety = randrange(int(self.spawn_pos.y - 0.5 * self.territory_rad, ), int(self.spawn_pos.y + 0.5 * self.territory_rad), step)
+
+        # Limit target to within map extents
+        targetx = clamp(targetx, self.game.map.gridwidth, self.game.map.width - self.game.map.gridwidth)
+        targety = clamp(targety, self.game.map.gridheight, self.game.map.height - self.game.map.gridheight)
+
+        self.target = vec(targetx, targety)
 
     def idle_swim(self):
         """ Swim towards random points (targets) on screen when not chasing player, other mobs etc"""
+        self.set_mode(self.modes, "passive")
         switch_target = (
             self.target_vec.length_squared() < self.hitrect.width ** 2
             # or self.vel.length_squared() < 4
@@ -887,27 +912,7 @@ class Enemy(Mobile_sprite):
 
         if switch_target:
 
-            step = self.territory_rad / 4
-            targetx = randrange(int(self.spawn_pos.x - self.territory_rad), int(self.spawn_pos.x + self.territory_rad), step)
-            targety = randrange(int(self.spawn_pos.y - 0.5 * self.territory_rad,), int(self.spawn_pos.y + 0.5 * self.territory_rad), step)
-
-            # Limit target to within map extents
-            targetx = clamp(targetx, self.game.map.gridwidth, self.game.map.width - self.game.map.gridwidth)
-            targety = clamp(targety, self.game.map.gridheight, self.game.map.height - self.game.map.gridheight)
-
-            new_target = vec(targetx, targety)
-            if not self.path_intersects_platform(new_target):
-                self.target = new_target  # if platform not between target and mob position
-            else:
-                self.target = vec(self.pos.x, self.pos.y)  # set target to current position - will trigger switch target to True on next loop
-
-    def target_player(self):
-        """Switch target to player if within chase radius and unobstructed."""
-        player_vec = self.game.player.pos - self.pos
-        if player_vec.length_squared() < self.target_player_rad ** 2:
-            target = vec(self.game.player.rect.center)
-            if not self.path_intersects_platform(target):
-                return True
+            self.get_random_target()
 
     def path_intersects_platform(self, target):
         """ Check if platform is between current position and target vect"""
@@ -919,6 +924,12 @@ class Enemy(Mobile_sprite):
                         self.spawn_pos = vec(self.pos.x, self.pos.y)  # reset start position
                         return True
         return False
+
+    def get_target_vector(self):
+        """Compute new vector toward target with random perturbation."""
+
+        new_target_vec = self.target - self.pos
+        self.target_vec = new_target_vec or self.target_vec  # if new_target_vec is zero return previous target_vec
 
     def take_damage(self, points_lost):
 
@@ -935,16 +946,27 @@ class Enemy(Mobile_sprite):
             self.add(self.game.hold_sprites)
             self.change_action(self.game.effects_images, self.__class__.deathanimation)  # change self.actionvar to new action
 
+    def set_mode(self, modes: dict, active_mode: str) -> dict:
+        """ Set active_mode True and other modes to False"""
+        for mode in modes:
+            modes[mode] = (mode == active_mode)
+        return modes
+
     def update(self):
 
         self.get_adjacent_grids()
 
-        if self.target_player():
-            self.target = vec(self.game.player.rect.center)
-        else:
+        # --- Choose Target ---
+        if not self.get_sprite_target(self.game.player):
             self.idle_swim()
 
-        self.get_target_vector()  # find new target vector
+        if self.path_intersects_platform(self.target):
+            self.set_mode(self.modes, "passive")
+            self.get_random_target()
+            print(self.target)
+        # --- --- #
+
+        self.get_target_vector()  # get resultant target vector
         self.chase_target()
 
         self.apply_mesh_vector('anti_g')  # add anti_g velocity components to current self.vel
@@ -957,12 +979,8 @@ class Daddyfish(Enemy):
     map_layer = 'enemies'
     refkey = 'daddyfish'
     hitpoints = 100
-    maxspeed = 6
+    max_speed = 6
     mass = 10
-
-    error_margin = 5  # average percentage error for tracking target vec  (5%
-    error_var = 2  # variance in percentage error ( 5 +/- 2% )
-    switch_freq = 2  # switch to new target every n seconds
 
     deathanimation = 'enemydeath4x4'
 
@@ -972,7 +990,13 @@ class Daddyfish(Enemy):
 
         self.accn = 0.3  # acceleration
         self.vel = vec(1, 0)
-        self.interval = randrange(2000, 3000) / 1000  # time between implementing change in trajectory (seconds) for idle swim
+        self.territory_rad = 2 * self.game.map.gridwidth
+
+        # Passive swimming
+        self.interval = randrange(1000, 2000) / 1000  # time between implementing change in trajectory (seconds) for passive swim
+
+        # Chase player
+        self.target_player_rad = 3 * game.map.gridwidth
 
     def setup_hitrect(self):
 
@@ -987,7 +1011,12 @@ class Daddyfish(Enemy):
     def chase_target(self):
         """Get acceleration vector directed to target.  Drag coefficient minimises velocity to Daddyfish.maxspeed"""
 
-        drag = self.accn / self.__class__.maxspeed  # increases with vel until maxspeed reached
+        if self.modes["passive"]:
+            self.max_speed = self.__class__.max_speed
+        elif self.modes["aggressive"]:
+            self.max_speed = self.__class__.max_speed * 2
+
+        drag = self.accn / self.__class__.max_speed  # increases with vel until maxspeed reached
         acc_vec = normalise(self.target_vec) * self.accn
         if self.apply_target_buffer():
             self.vel += acc_vec - drag * self.vel
@@ -1006,7 +1035,7 @@ class Dartfish(Enemy):
     refkey = 'dartfish'
 
     hitpoints = 10
-    max_speed = 12
+    max_speed = 6  # max speed for passive mode by default
     mass = 20
 
     vel = vec(6, 0)  # initial velocity
@@ -1022,10 +1051,15 @@ class Dartfish(Enemy):
         super().__init__(game, x, y)
         self.hitpoints = Dartfish.hitpoints
         self.vel = Dartfish.vel
+        self.maxspeed = self.__class__.max_speed
+        self.territory_rad = 1 * self.game.map.gridwidth
 
         # Passive swimming
         self.interval = randrange(1000, 2000)/1000  # time between implementing change in trajectory (seconds) for passive swim
         self.rot_direction = 1  # sprite will spiral clockwise by default: -1 = anticlockwise
+
+        # Chase player
+        self.target_player_rad = 2 * game.map.gridwidth
 
     def get_spiral_param(self):
         """ Adjust class parameters with varying FPS so trajectories account for time-steps """
@@ -1073,10 +1107,14 @@ class Dartfish(Enemy):
         """Switch between inward / outward spiral dpending on travelling away from / towards target respectively"""
         c = sign(self.vel.dot(self.target_vec))  # returns either +- 1  # control variable determines whether to follow inward or outward spiral path
         self.geo_prog = self.geo_prog ** c
-        print(self.geo_prog)
 
     def chase_target(self):
         """ High level steps to close in on target following spiral trajectory """
+        if self.modes["passive"]:
+            self.max_speed = self.__class__.max_speed
+        elif self.modes["aggressive"]:
+            self.max_speed = self.__class__.max_speed * 2
+
         self.get_spiral_param()
         self.rot_direction = self.get_rot_direction()
         self.spiral_turn()
@@ -1092,7 +1130,7 @@ class Spinefish(Dartfish):
     refkey = 'spinefish'
     hitpoints = 20
     vel = vec(4, 0)  # initial velocity
-    max_speed = 12
+    max_speed = 4
 
     def __init__(self, game, x, y):
 

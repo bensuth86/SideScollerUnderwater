@@ -31,7 +31,7 @@
       "scroll_down": "MOUSE_WHEEL_DOWN"
     },
     "settings": {
-      "sensitivity": 1.5,
+      "sensitivity": 2.0,
       "invert_y": false
     }
   }

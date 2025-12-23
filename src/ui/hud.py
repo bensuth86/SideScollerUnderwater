@@ -1,5 +1,5 @@
 from pygame import Rect, draw, font
-from ..settings import WHITE, GREEN, BLUE
+from ..settings import WHITE, GREEN, BLUE, RED, SCREENWIDTH
 
 
 def draw_sprite_bar(surf, x, y, pct, c1, c2, c3):
@@ -59,3 +59,11 @@ def draw_grid(game):  # (rows,columns)
         textRect = text.get_rect()
         textRect.topleft = (x1, y1)
         game.screen.blit(text, textRect)
+
+
+def draw_ray(game):
+
+    start = game.player.pos
+    line_vec = game.player.aim_direction.normalize() * SCREENWIDTH
+    end = start + line_vec
+    draw.line(game.screen, RED, start - game.camera.pos, (end - game.camera.pos), 1)

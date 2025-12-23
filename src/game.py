@@ -10,7 +10,7 @@ from pathlib import Path
 from .settings import *
 from .helpers import resolve_class, resize_images, load_spritesheets, load_json, _map_keyboard_controls, _map_mouse_controls
 from .systems import TiledMap, Camera, ObjectPool
-from .ui.hud import draw_sprite_bar, draw_text, draw_grid
+from .ui.hud import draw_sprite_bar, draw_text, draw_grid, draw_ray
 from src import sprites
 from .sprites import Pickup, Player, Missile
 from loggers import performance_FPS_monitoring, check_sprite_size, check_extreme_vel, left_map_bounds
@@ -27,6 +27,7 @@ class Game:
         self.elapsed_time = time.perf_counter()  # from new game start
         self.dt = 0  # time elapsed for 1 mainloop
         self.running = True  # game running
+        self.lock_controls = True
         self.debug = False
 
         # --- Load JSON configuration ---
@@ -311,7 +312,8 @@ class Game:
                 self.running = False
 
     def events(self):
-        # pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
+        if self.lock_controls:
+            pygame.event.set_grab(True)  # lock keyboard and mouse input into pygame app
 
         for event in pygame.event.get():
 
@@ -464,7 +466,9 @@ class Game:
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
         # --- player stamina ---
         draw_sprite_bar(self.screen, 0.8 * SCREENWIDTH, 10, self.player.stamina / Player.stamina, RED, BLUE, PURPLE)
-        # --- current weapon select ---
+        # --- player aim --- #
+        draw_ray(self)
+        # --- current weapon select --
         draw_text(self, self.player.current_weapon, 20, RED, 0.4 * SCREENWIDTH, 15)
         # --- ammo ---
         draw_text(self, str(self.player.ammo[self.player.current_weapon]), 20, RED, 0.6 * SCREENWIDTH, 15)
