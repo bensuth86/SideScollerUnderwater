@@ -73,7 +73,6 @@ class Game:
         self.sound_config = load_json(config_dir / "sound_config.json")
         self.controls_config = load_json(config_dir / "controls_config.json")
 
-
         logger.info("[CONFIG] Game, image, and sound configs loaded")
 
         # Resolve paths
@@ -462,6 +461,7 @@ class Game:
         # ---------------------------------------------
         #   HUD (health, stamina, weapon, ammo) ---
         # ---------------------------------------------
+
         # --- player hitpoints ---
         draw_sprite_bar(self.screen, 0.2 * SCREENWIDTH, 10, self.player.hitpoints / Player.hitpoints, GREEN, YELLOW, RED)
         # --- player stamina ---

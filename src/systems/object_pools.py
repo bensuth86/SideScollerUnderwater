@@ -1,4 +1,4 @@
-from pygame import sprite, Vector2 as vec
+from pygame import sprite
 from loggers import check_sprite_groups
 import logging
 
@@ -81,7 +81,6 @@ class ObjectPool(sprite.Group):
             for sprite_obj in list(self.game.hold_sprites):
                 if isinstance(sprite_obj, self.sprite_class):
                     self.rtrn_object(sprite_obj)
-                    # self.game.hold_sprites.remove(sprite_obj)
                     break
 
     def current_size(self):

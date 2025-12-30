@@ -1,430 +1,59 @@
-[INFO] 11:21:03 - root - Logging initialized. Logs stored in C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\loggers
-[INFO] 11:21:03 - root - Test the custom logger
-[INFO] 11:21:03 - __main__ - Game starting up...
-[INFO] 11:21:15 - src.game - [CONFIG] Game, image, and sound configs loaded
-[INFO] 11:21:23 - src.game - [INFO] effects, pickups, mobs, player, weapons images loaded
-[WARNING] 11:21:23 - loggers.logging_fnc - [IMAGES] 'harpoon' height doesn't fit tile size.
-[INFO] 11:21:23 - src.game - [OK] Loaded mesh: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\test_anti_g.npy
-[WARNING] 11:21:23 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_anti_g.npy
-[WARNING] 11:21:23 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\test_waterflow.npy
-[WARNING] 11:21:23 - src.game - [WARNING] Mesh file not found: C:\Users\ben_s\Documents\Python_Scripts\PROJECTS\SideScrollerUnderwater\assets\mesh_files\level1_waterflow.npy
-[INFO] 11:21:23 - src.game - [INFO] music, ambient sounds loaded
-[INFO] 11:21:23 - src.game - loaded player controls
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Torpedo'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Harpoon'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Mine'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Daddyfish'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Dartfish'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INFO] <class 'src.sprites.Spinefish'> object_pool initialised
-[INFO] 11:21:23 - src.game - [INIT] Object pools initialized from config\pool_config.json
-[WARNING] 11:21:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:23 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:24 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.5
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:25 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:26 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 10.2
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:27 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:28 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.9
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:29 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 9.7
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:30 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:31 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:32 - loggers.logging_fnc - [PERF] Critical low FPS: 10.1
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:33 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:34 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:35 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:36 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -34.63154382903747.
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.348402691161915.
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:37 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.08375429225307.
-[WARNING] 11:21:37 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.06064364298108.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.105931402922764.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.200120196003994.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.36574762565973.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.14275307002431.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.12059772908711.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -34.543829599231536.
-[WARNING] 11:21:38 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:38 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -34.70996915556642.
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:39 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.31316105058467.
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:39 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -35.27334753132048.
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -34.95246152316328.
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [WORLD] <Dartfish Sprite(in 3 groups)> out of map bounds at -34.84903455642312.
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:39 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 7.5
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:40 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:41 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.7
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:42 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:43 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:44 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.7
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:45 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 7.4
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:46 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 8.6
-[WARNING] 11:21:47 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:48 - loggers.logging_fnc - [PERF] Critical low FPS: 7.9
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:49 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:50 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:51 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:52 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:53 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:54 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:55 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:56 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:57 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 8.4
-[WARNING] 11:21:58 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:21:59 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:00 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:01 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.3
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:02 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.2
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:03 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:04 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:05 - loggers.logging_fnc - [PERF] Critical low FPS: 9.4
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:06 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:07 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.5
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:08 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 8.1
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:09 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:10 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:10 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:10 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
-[WARNING] 11:22:10 - loggers.logging_fnc - [PERF] Critical low FPS: 7.6
+[INFO] 12:24:56 - root - Logging initialized. Logs stored in /home/bensuth86/PycharmProjects/SideScollerUnderwater/loggers
+[INFO] 12:24:56 - root - Test the custom logger
+[INFO] 12:24:56 - __main__ - Game starting up...
+[INFO] 12:24:57 - src.game - [CONFIG] Game, image, and sound configs loaded
+[INFO] 12:24:58 - src.game - [INFO] effects, pickups, mobs, player, weapons images loaded
+[WARNING] 12:24:58 - loggers.logging_fnc - [IMAGES] 'harpoon' height doesn't fit tile size.
+[INFO] 12:24:58 - src.game - [OK] Loaded mesh: /home/bensuth86/PycharmProjects/SideScollerUnderwater/assets/mesh_files/test_anti_g.npy
+[WARNING] 12:24:58 - src.game - [WARNING] Mesh file not found: /home/bensuth86/PycharmProjects/SideScollerUnderwater/assets/mesh_files/level1_anti_g.npy
+[WARNING] 12:24:58 - src.game - [WARNING] Mesh file not found: /home/bensuth86/PycharmProjects/SideScollerUnderwater/assets/mesh_files/test_waterflow.npy
+[WARNING] 12:24:58 - src.game - [WARNING] Mesh file not found: /home/bensuth86/PycharmProjects/SideScollerUnderwater/assets/mesh_files/level1_waterflow.npy
+[INFO] 12:24:58 - src.game - [INFO] music, ambient sounds loaded
+[INFO] 12:24:58 - src.game - loaded player controls
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Torpedo'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Harpoon'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Mine'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Daddyfish'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Dartfish'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INFO] <class 'src.sprites.Spinefish'> object_pool initialised
+[INFO] 12:24:58 - src.game - [INIT] Object pools initialized from config/pool_config.json
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:24:58 - loggers.logging_fnc - [PERF] Critical low FPS: 0.0
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:12 - loggers.logging_fnc - [PERF] Low FPS: 29.8 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:22 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.
+[WARNING] 12:25:37 - loggers.logging_fnc - [PERF] Low FPS: 26.7 — adaptive rendering triggered.

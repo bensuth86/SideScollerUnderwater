@@ -1,8 +1,7 @@
-# source code: https://stackoverflow.com/questions/45526988/does-anyone-have-an-example-of-using-sprite-sheets-in-tandem-with-xml-files
+# https://stackoverflow.com/questions/45526988/does-anyone-have-an-example-of-using-sprite-sheets-in-tandem-with-xml-files
 
 import xml.etree.ElementTree as ET
 import pygame
-from os import path
 from pathlib import Path
 
 from ..helpers.file_io import load_json
@@ -14,10 +13,14 @@ class SpriteSheet:
     """ load an atlas image (spritesheet) pass an associated XML file to dictionary self.animation_frames"""
     def __init__(self, filename):
 
-        image_path = self._load_image_path()
-        imgfile = path.join(image_path, filename + ".png")
-        self.spritesheet = pygame.image.load(imgfile).convert_alpha()  # convert_alpha maintains transparent pixels whereas convert() replaces them with black pixels
-        self.xmlfile = path.join(image_path, filename + ".xml")
+        self.image_path = self._load_image_path()
+
+        # Resolve image file (.png)
+        self.imgfile = self._find_file(self.image_path, filename, ["png"])
+        self.spritesheet = pygame.image.load(str(self.imgfile)).convert_alpha()
+
+        # Resolve XML file (.xml or .XML etc.)
+        self.xmlfile = self._find_file(self.image_path, filename, ["xml"])
 
     def _load_image_path(self):
 
@@ -25,7 +28,21 @@ class SpriteSheet:
         game_config = load_json(config_dir / "game_config.json")
         base = Path(game_config["base"])
         image_path = base / game_config["rel_paths"]["images"]
+        if not image_path.is_dir():
+            raise FileNotFoundError(f"Image directory not found: {image_path}")
+
         return image_path
+
+    def _find_file(self, directory: Path, stem: str, extensions):
+        """
+        Find a file ignoring extension case (.xml vs .XML).
+        """
+        for ext in extensions:
+            matches = list(directory.glob(f"{stem}.[{ext[0]}{ext[0].upper()}]"
+                                           f"[{ext[1]}{ext[1].upper()}]"
+                                           f"[{ext[2]}{ext[2].upper()}]"))
+            if matches:
+                return matches[0]
 
     def get_image(self, x, y, width, height):
 
@@ -35,20 +52,24 @@ class SpriteSheet:
         return image
 
     def get_sprite_images(self):
-        """get images from spritesheet and cache image surf to dictionary - dictionary ordered by category, then nested subcat if applicable"""
-        if self.xmlfile:
-            tree = ET.parse(self.xmlfile)
-            images = {}
-            for node in tree.iter():
-                    if node.attrib.get('SPRITECAT'):
-                        spritecategory = node.attrib.get('SPRITECAT')
-                        x = int(node.attrib.get('X'))
-                        y = int(node.attrib.get('Y'))
-                        width = int(node.attrib.get('WIDTH'))
-                        height = int(node.attrib.get('HEIGHT'))
-                        img = self.get_image(x, y, width, height)
+        """
+        Extract and cache sprite images from the XML file.
+        Returns a dict keyed by SPRITECAT.
+        """
+        images = {}
 
-                        if spritecategory not in images:
-                            images[spritecategory] = []
-                        images[spritecategory].append(img)
+        tree = ET.parse(str(self.xmlfile))
+        for node in tree.iter():
+            spritecategory = node.attrib.get("SPRITECAT")
+            if not spritecategory:
+                continue
+
+            x = int(node.attrib["X"])
+            y = int(node.attrib["Y"])
+            width = int(node.attrib["WIDTH"])
+            height = int(node.attrib["HEIGHT"])
+
+            img = self.get_image(x, y, width, height)
+            images.setdefault(spritecategory, []).append(img)
+
         return images

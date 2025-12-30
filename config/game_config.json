@@ -1,5 +1,5 @@
 {
-  "base": "C:/Users/ben_s/Documents/Python_Scripts/PROJECTS/SideScrollerUnderwater",
+  "base": "/home/bensuth86/PycharmProjects/SideScollerUnderwater/",
   "rel_paths": {
     "images": "assets/Images",
     "maps": "assets/maps",

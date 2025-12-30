@@ -2,10 +2,10 @@ import pytmx
 import pygame
 
 from string import ascii_uppercase
+from random import choice
 
 from ..helpers import clamp
 from ..settings import SCREENWIDTH, SCREENHEIGHT
-from random import choice
 from loggers import check_valid_grid
 
 
@@ -157,7 +157,7 @@ class TiledMap:
         if not self.valid_spawn_tiles:
             raise RuntimeError("Valid spawn tiles have not been computed yet!")
 
-        col, row = random.choice(self.valid_spawn_tiles)
+        col, row = choice(self.valid_spawn_tiles)
 
         # Convert tile coords → world pixel coords
         x = col * self.tilesize + self.tilesize // 2

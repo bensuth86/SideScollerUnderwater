@@ -1,7 +1,8 @@
 import logging
 from os import path
+from pathlib import Path
 
-log_dir = "C:\\Users\\ben_s\\Documents\\Python_Scripts\\PROJECTS\\SideScrollerUnderwater\\loggers"
+log_dir = Path.home() / 'PycharmProjects/SideScollerUnderwater/loggers'
 
 
 def setup_logging():

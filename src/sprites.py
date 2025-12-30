@@ -963,7 +963,7 @@ class Enemy(Mobile_sprite):
         if self.path_intersects_platform(self.target):
             self.set_mode(self.modes, "passive")
             self.get_random_target()
-            print(self.target)
+
         # --- --- #
 
         self.get_target_vector()  # get resultant target vector
